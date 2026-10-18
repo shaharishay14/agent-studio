@@ -27,25 +27,17 @@ Type a one-line description and YOLO mode generates the agent's name, instructio
 
 Responses stream token by token over Server-Sent Events. When the agent calls a tool, the chat shows a live status card for the call and its result, so you can see what the agent is doing as it happens.
 
-![Chat with a demo agent: the user asks for a summary of unread emails, a tool-call card shows a Gmail fetch in progress then completed, and the streamed answer lists three email summaries](docs/images/chat.png)
-
 ### Integrations
 
 Agents connect to 30+ third-party apps through Composio OAuth, including Gmail, Google Drive, Slack, GitHub, Notion and HubSpot. Built-in tools cover weather, a calculator, stock quotes, YouTube search, web search and a website reader.
-
-![Integrations page showing a grid of app cards such as Gmail, Slack, GitHub and Notion, with some marked Connected and others showing a Connect button](docs/images/integrations.png)
 
 ### Workflow Automation
 
 A visual workflow builder (React Flow) chains agents together and runs them from a cron schedule, an app event such as a new email, or a manual trigger.
 
-![Workflow builder canvas with a schedule trigger node connected to two agent nodes in sequence](docs/images/workflows.png)
-
 ### Telegram Bots
 
 Paste a bot token from BotFather and any agent becomes a Telegram bot. The backend verifies the token, registers a webhook, and replies to incoming messages with the agent.
-
-![Telegram connection modal for an agent, showing the bot token field and a connected status with the bot's username and QR code](docs/images/telegram.png)
 
 ## Architecture
 
