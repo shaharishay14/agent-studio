@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Django Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agent_studio_backend
+    restart: unless-stopped
+
+    # Load environment variables from .env file
+    env_file:
+      - ./backend/.env
+
+    # Internal port exposure (NOT published to host)
+    # Other containers can access backend:8000
+    expose:
+      - "8000"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Connect to default network
+    networks:
+      - agent_studio_network
+
+  # Nginx Reverse Proxy Service
+  nginx:
+    image: nginx:alpine
+    container_name: agent_studio_nginx
+    restart: unless-stopped
+
+    # Publish port 80 and 443 to the host (external access)
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # Nginx configuration
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+
+      # React production build (static files)
+      - ./frontend/dist:/usr/share/nginx/html:ro
+
+      # Let's Encrypt SSL certificates
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+
+      # Django static files (if using collectstatic)
+      # - ./backend/staticfiles:/usr/share/nginx/static:ro
+
+    # Wait for backend to be ready
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - agent_studio_network
+
+# Define custom network (optional but explicit)
+networks:
+  agent_studio_network:
+    driver: bridge
+    name: agent_studio_network

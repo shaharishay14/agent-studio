@@ -1,0 +1,3811 @@
+openapi: 3.0.3
+info:
+  title: Agent Studio API
+  version: 1.0.0
+  description: AI Agent Creator Platform - API Documentation for Frontend Integration
+paths:
+  /api/agent-templates/:
+    get:
+      operationId: files_list
+      description: Returns list of all file attachments owned by the authenticated
+        user. Files are stored in the database as binary data. Files are ordered by
+        upload date (newest first). Users can only see their own files. Each file
+        includes a download_url to retrieve the binary content and agent_name showing
+        which agent it belongs to. Can be filtered by agent_id query parameter to
+        get files for a specific agent.
+      summary: List all files
+      parameters:
+      - in: query
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+        description: Filter files by agent (optional)
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileAttachment'
+              examples:
+                FilesListResponse:
+                  value:
+                  - - id: 550e8400-e29b-41d4-a716-446655440000
+                      agent_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                      agent_name: Email Assistant
+                      original_filename: document.pdf
+                      file_size: 1024
+                      mime_type: application/pdf
+                      uploaded_at: '2024-01-01T00:00:00Z'
+                      download_url: http://localhost:8000/api/files/550e8400-e29b-41d4-a716-446655440000/download/
+                    - id: 550e8400-e29b-41d4-a716-446655440001
+                      agent_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                      agent_name: Email Assistant
+                      original_filename: image.jpg
+                      file_size: 2048
+                      mime_type: image/jpeg
+                      uploaded_at: '2024-01-01T01:00:00Z'
+                      download_url: http://localhost:8000/api/files/550e8400-e29b-41d4-a716-446655440001/download/
+                  summary: Files List Response
+          description: List of file attachments
+        '401':
+          description: Authentication required
+  /api/agent-templates/{id}/:
+    get:
+      operationId: files_retrieve
+      description: Returns detailed information about a specific file attachment stored
+        in the database. Users can only retrieve their own files. The response includes
+        metadata and a download_url to retrieve the binary file content.
+      summary: Get file details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: File attachment UUID
+        required: true
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileAttachment'
+              examples:
+                FileDetails:
+                  value:
+                    id: 550e8400-e29b-41d4-a716-446655440000
+                    agent_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    agent_name: Email Assistant
+                    original_filename: document.pdf
+                    file_size: 1024
+                    mime_type: application/pdf
+                    uploaded_at: '2024-01-01T00:00:00Z'
+                    download_url: http://localhost:8000/api/files/550e8400-e29b-41d4-a716-446655440000/download/
+                  summary: File Details
+          description: File details
+        '401':
+          description: Authentication required
+        '404':
+          description: File not found or not owned by user
+  /api/agent-templates/instantiate_template/:
+    post:
+      operationId: agent_templates_instantiate
+      description: "Creates a new agent from a template for the authenticated user.
+        The agent is created with the template's system prompt, default tools, and
+        default agent tools. \n\nResponse includes:\n- The newly created agent\n-
+        A success message\n- List of missing_connections: tools that are configured
+        but not yet connected at account level\n\n\nAfter receiving the response,
+        the frontend should:\n1. If missing_connections is empty: Navigate to agent
+        chat\n2. If missing_connections exists: Navigate to agent configuration page
+        to set up connections"
+      summary: Instantiate an agent from a template
+      tags:
+      - agent-templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstantiateTemplateRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InstantiateTemplateRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InstantiateTemplateRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstantiateTemplateResponse'
+          description: Agent created successfully from template
+        '400':
+          description: Validation error (e.g., missing required connections, invalid template)
+        '401':
+          description: Authentication required
+        '404':
+          description: Template not found
+  /api/agents/:
+    get:
+      operationId: agents_list
+      description: Returns list of all agents owned by the authenticated user. Agents
+        are ordered by creation date (newest first).
+      summary: List all agents
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+              examples:
+                AgentsListResponse:
+                  value:
+                  - - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                      user: username
+                      name: Email Manager
+                      prompt: Help me manage my emails
+                      tools:
+                      - GMAIL_SEND_EMAIL
+                      - GMAIL_FETCH_EMAILS
+                      app_connections:
+                      - GMAIL
+                      message_count: 5
+                      created_at: '2024-01-01T00:00:00Z'
+                      updated_at: '2024-01-01T00:00:00Z'
+                  summary: Agents List Response
+          description: List of agents
+        '401':
+          description: Authentication required
+    post:
+      operationId: agents_create
+      description: "\n        Creates a new AI agent with a prompt. The agent name
+        is automatically generated from the prompt using AI.\n        \n        **New
+        Flow:**\n        - **`prompt`** (required): The agent's purpose/instructions\n
+        \       - **`name`** (optional): If not provided, will be auto-generated from
+        the prompt\n        - **`app_connections`** (optional): List of app names
+        (e.g., [\"GMAIL\", \"SLACK\"]). If empty or omitted, agent is created with
+        no tools and can be added later.\n        \n        **Response:**\n        -
+        Returns the created agent with generated name and tools (if app_connections
+        provided)\n        - If no app_connections provided, tools will be empty array\n
+        \       "
+      summary: Create a new agent
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+            examples:
+              CreateAgent(promptOnly):
+                value:
+                  prompt: Help me manage my emails and schedule meetings
+                summary: Create Agent (prompt only)
+                description: Create agent with just a prompt. Name will be auto-generated.
+              CreateAgent(withTools):
+                value:
+                  prompt: Help me manage my emails
+                  app_connections:
+                  - GMAIL
+                  - SLACK
+                summary: Create Agent (with tools)
+                description: Create agent with prompt and tools. Name will be auto-generated.
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+              examples:
+                AgentCreated(withTools):
+                  value:
+                    id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    user: username
+                    name: Email And Meeting Manager
+                    prompt: Help me manage my emails and schedule meetings
+                    tools:
+                    - GMAIL_SEND_EMAIL
+                    - GMAIL_FETCH_EMAILS
+                    - GOOGLECALENDAR_CREATE_EVENT
+                    app_connections:
+                    - GMAIL
+                    - GOOGLECALENDAR
+                    message_count: 0
+                    created_at: '2024-01-01T00:00:00Z'
+                    updated_at: '2024-01-01T00:00:00Z'
+                  summary: Agent Created (with tools)
+                AgentCreated(noTools):
+                  value:
+                    id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    user: username
+                    name: Email Assistant
+                    prompt: Help me with emails
+                    tools: []
+                    app_connections: []
+                    message_count: 0
+                    created_at: '2024-01-01T00:00:00Z'
+                    updated_at: '2024-01-01T00:00:00Z'
+                  summary: Agent Created (no tools)
+          description: Agent created successfully
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+  /api/agents/{agent_id}/messaging/channels/:
+    get:
+      operationId: messaging_channels_list
+      description: Get all connected messaging channels (Telegram, WhatsApp) for an
+        agent
+      summary: Get messaging channels for agent
+      parameters:
+      - in: path
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messaging
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MessagingChannel'
+          description: ''
+  /api/agents/{agent_id}/messaging/disconnect/:
+    post:
+      operationId: messaging_disconnect
+      description: Disconnect a messaging channel (Telegram or WhatsApp) from an agent.
+        This will delete the webhook and remove the connection.
+      summary: Disconnect messaging channel from agent
+      parameters:
+      - in: path
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messaging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisconnectMessagingChannelRequest'
+            examples:
+              RequestExample:
+                value:
+                  platform: telegram
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DisconnectMessagingChannelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DisconnectMessagingChannelRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: Channel disconnected successfully
+  /api/agents/{agent_id}/telegram/connect/:
+    post:
+      operationId: telegram_connect
+      description: Connect a Telegram bot to an agent. User must create their own
+        bot via @BotFather first and provide the bot token. The bot will be configured
+        to send messages to this agent.
+      summary: Connect Telegram bot to agent
+      parameters:
+      - in: path
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - messaging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectTelegramBotRequest'
+            examples:
+              RequestExample:
+                value:
+                  bot_token: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectTelegramBotRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectTelegramBotRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagingChannel'
+              examples:
+                SuccessResponse:
+                  value:
+                    id: 1
+                    platform: telegram
+                    platform_display: Telegram
+                    bot_username: my_agent_bot
+                    status: active
+                    status_display: Active
+                    message_count: 0
+                    last_message_at: null
+                    created_at: '2025-11-26T12:00:00Z'
+                    updated_at: '2025-11-26T12:00:00Z'
+                  summary: Success Response
+          description: ''
+  /api/agents/{id}/:
+    get:
+      operationId: agents_retrieve
+      description: Returns details of a specific agent by ID. Users can only retrieve
+        their own agents.
+      summary: Get agent details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+          description: Agent details
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+    put:
+      operationId: agents_update
+      description: Fully updates an agent. All fields are required. The tools list
+        is automatically regenerated from app_connections.
+      summary: Update agent (full)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+          description: Agent updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+    patch:
+      operationId: agents_partial_update
+      description: Partially updates an agent. Only provided fields will be updated.
+        If app_connections is updated, the tools list is automatically regenerated.
+      summary: Update agent (partial)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentRequest'
+            examples:
+              AddToolsToAgent:
+                value:
+                  app_connections:
+                  - GMAIL
+                  - SLACK
+                summary: Add Tools to Agent
+                description: Add tools to an existing agent by updating app_connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+          description: Agent updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+    delete:
+      operationId: agents_destroy
+      description: Deletes an agent by ID. Users can only delete their own agents.
+      summary: Delete agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Agent deleted successfully
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+  /api/agents/{id}/add-agent-tool/:
+    post:
+      operationId: agents_add_agent_tool
+      description: "Enables a specific agent tool for this agent. **Authentication
+        required.** \n\nAdds the tool name to agent.agent_tools list if not already
+        present."
+      summary: Add/enable an agent tool for this agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddAgentToolRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddAgentToolRequestRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAgentToolRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddAgentToolResponse'
+          description: Tool added successfully
+        '400':
+          description: Invalid tool name or tool already enabled
+        '404':
+          description: Agent not found or not owned by user
+  /api/agents/{id}/available-agent-tools/:
+    get:
+      operationId: agents_available_agent_tools
+      description: "Returns all agent-specific tools with their enabled/disabled status
+        for this agent. **Authentication required.** \n\nShows which tools are currently
+        enabled in agent.agent_tools list."
+      summary: Get agent tools with enabled status for specific agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentToolsResponse'
+          description: Agent tools with enabled status
+        '404':
+          description: Agent not found or not owned by user
+  /api/agents/{id}/available_tools/:
+    get:
+      operationId: agents_available_tools
+      description: "Returns all available tools with their connection status for a
+        specific agent. **Authentication required.** \n\nThis endpoint shows which
+        tools are:\n1. Connected at the **account level** (via /api/connections/)\n2.
+        Enabled for **this specific agent** (in agent.app_connections)\n\n\n**Use
+        case:** Call this when user visits agent configuration page to show which
+        tools can be enabled/disabled for this agent. Only tools connected at account
+        level can be enabled for agents."
+      summary: Get available tools for agent with connection status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAvailableToolsResponse'
+              examples:
+                AgentAvailableTools:
+                  value:
+                    tools:
+                    - tool_name: GMAIL
+                      name: Gmail
+                      description: Send, receive, and manage emails
+                      category: communication
+                      is_connected_to_account: true
+                      is_connected_to_agent: true
+                      connection_id: 42
+                    - tool_name: SLACK
+                      name: Slack
+                      description: Send messages and manage workspace
+                      category: messaging
+                      is_connected_to_account: true
+                      is_connected_to_agent: false
+                      connection_id: 87
+                    - tool_name: NOTION
+                      name: Notion
+                      description: Create pages and databases
+                      category: productivity
+                      is_connected_to_account: false
+                      is_connected_to_agent: false
+                      connection_id: null
+                    count: 18
+                  summary: Agent Available Tools
+          description: List of all available tools with connection status
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+        '500':
+          description: Server error
+  /api/agents/{id}/chat/:
+    post:
+      operationId: agents_chat_create
+      description: Sends a message to the agent and receives a response. This is the
+        core chat functionality. The agent dynamically selects tools based on the
+        message content and chat history, then executes the appropriate actions. Supports
+        file attachments via file_ids. The response includes both the user message
+        and the assistant response, both saved to the database.
+      summary: Chat with agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentChatRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentChatRequestRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentChatRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentChatResponse'
+          description: Chat response with user and assistant messages
+        '400':
+          description: Validation error (e.g., message is required)
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+        '500':
+          description: Server error during chat execution
+  /api/agents/{id}/messages/:
+    get:
+      operationId: agents_messages_retrieve
+      description: Retrieves all chat messages for a specific agent. Messages are
+        returned in chronological order (oldest first). Each message includes the
+        role (user/assistant), content, attachments, and timestamp.
+      summary: Get agent chat messages
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+          description: List of chat messages for the agent. Messages are returned
+            in chronological order (oldest first).
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found
+  /api/agents/{id}/remove-agent-tool/{tool_name}/:
+    delete:
+      operationId: agents_remove_agent_tool
+      description: "Disables a specific agent tool for this agent. **Authentication
+        required.** \n\nRemoves the tool name from agent.agent_tools list."
+      summary: Remove/disable an agent tool from this agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      - in: path
+        name: tool_name
+        schema:
+          type: string
+        description: Tool name to remove (e.g., "weather", "calculator")
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddAgentToolResponse'
+          description: Tool removed successfully
+        '400':
+          description: Tool not enabled or invalid tool name
+        '404':
+          description: Agent not found or not owned by user
+  /api/agents/{id}/reset-chat/:
+    post:
+      operationId: agents_reset_chat
+      description: |-
+        Resets the chat history for a specific agent. This endpoint performs a complete reset:
+
+        **Effects:**
+        1. Deletes all conversation history (ChatMessage records)
+        2. Clears all stored memories and context
+        3. Removes all previous message context
+        4. Starts fresh with no conversation history
+
+        **Use case:** Call this when the user wants to start a new conversation from scratch, clearing all previous interactions and context. This is useful for privacy, testing, or when the conversation becomes too long or off-track.
+
+        **Note:** This action is irreversible. All chat messages for this agent will be permanently deleted.
+      summary: Reset agent chat history
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Agent UUID
+        required: true
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: Chat history reset successfully
+        '401':
+          description: Authentication required
+        '404':
+          description: Agent not found or not owned by user
+  /api/agents/agent-tools/:
+    get:
+      operationId: agents_agent_tools_list
+      description: "Returns list of all agent-specific tools (weather, calculator,
+        etc.) that can be added to agents. **No authentication required.** \n\nThese
+        are different from Composio connection tools. Agent tools:\n- Don't require
+        external OAuth connections\n- Are managed entirely by the backend\n- Users
+        can simply enable/disable them for each agent\n\n\nAvailable tools: weather
+        (Open-Meteo), calculator, yahoo_finance, youtube, web_search, website_reader"
+      summary: Get all available agent-specific tools
+      tags:
+      - agents
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentToolsResponse'
+          description: List of agent tools with metadata
+  /api/agents/suggested-prompts/:
+    post:
+      operationId: agents_suggested_prompts
+      description: "Generates 3 ready-to-use example prompts based on the agent's
+        purpose and available tools. **No authentication required for this endpoint.**
+        \n\nThis endpoint is useful when creating a new agent - it provides the frontend
+        with suggested example prompts that users can click to quickly interact with
+        their agent.\n\nFor example, if creating an email assistant with Gmail, it
+        might suggest:\n- \"Check my latest emails\"\n- \"Send an email to...\"\n-
+        \"Delete specific emails\""
+      summary: Generate suggested prompts for agent
+      tags:
+      - agents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SuggestedPromptsRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SuggestedPromptsRequestRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestedPromptsRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestedPromptsResponse'
+          description: Successfully generated suggested prompts
+        '400':
+          description: Invalid request data
+        '500':
+          description: Internal server error
+  /api/auth/email/verify/confirm/:
+    get:
+      operationId: auth_email_verify_confirm
+      description: Confirms email verification using uid and token from the verification
+        link.
+      parameters:
+      - in: query
+        name: token
+        schema:
+          type: string
+        description: Verification token
+        required: true
+      - in: query
+        name: uid
+        schema:
+          type: string
+        description: Base64 user id
+        required: true
+      tags:
+      - auth
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailVerificationConfirmResponse'
+          description: ''
+  /api/auth/email/verify/resend/:
+    post:
+      operationId: auth_email_verify_resend
+      description: Resends the email verification link to the authenticated user's
+        email address. The email address is automatically retrieved from the authenticated
+        user account (request.user.email), so no email parameter or request body is
+        required. This endpoint uses the user from the authentication token (JWT in
+        HttpOnly cookie). A new verification token is generated and sent to the user's
+        email address via EmailJS (if configured) or Django send_mail. The verification
+        link expires after a set period and can only be used once.
+      summary: Resend email verification
+      tags:
+      - auth
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailVerificationResendResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    detail: Verification email sent.
+                  summary: Success Response
+          description: Verification email sent successfully to the authenticated user's
+            email address
+        '401':
+          description: Authentication required. User must be logged in with valid
+            JWT token. The email address is taken from the authenticated user account.
+  /api/auth/github/:
+    post:
+      operationId: auth_github
+      description: Login with GitHub using OAuth code or access_token. Returns JWT
+        access, refresh, DRF token, and user.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitHubLoginRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GitHubLoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GitHubLoginRequestRequest'
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthLoginResponse'
+          description: GitHub login success
+        '400':
+          description: GitHub login failed
+  /api/auth/google/:
+    post:
+      operationId: auth_google
+      description: "\n        Authenticate a user using Google OAuth2. Supports three
+        authentication flows:\n        \n        **1. Authorization Code Flow (Recommended)**
+        - Most secure, uses PKCE\n        - Frontend receives authorization code from
+        Google\n        - Backend exchanges code for tokens\n        - Use this with
+        `@react-oauth/google` with `flow: 'auth-code'`\n        \n        **2. ID
+        Token Flow** - Direct ID token validation\n        - Frontend receives ID
+        token from Google\n        - Backend validates token directly\n        \n
+        \       **3. Access Token Flow** - Legacy support\n        - Frontend receives
+        access token\n        - Backend uses token to fetch user info\n        \n
+        \       **Response:**\n        - Sets HTTP-only cookies: `access` (15 min)
+        and `refresh` (7 days)\n        - Returns user data and DRF token in response
+        body\n        - Automatically verifies user email (social auth users are verified)\n
+        \       "
+      summary: Login with Google OAuth2
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequestRequest'
+            examples:
+              AuthorizationCodeFlow(Recommended):
+                value:
+                  code: 4/0AeanS...
+                  code_verifier: dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+                summary: Authorization Code Flow (Recommended)
+                description: Use this when frontend sends authorization code from
+                  Google OAuth popup
+              IDTokenFlow:
+                value:
+                  id_token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2Mz...
+                summary: ID Token Flow
+                description: Use this when frontend has Google ID token (JWT)
+              AccessTokenFlow:
+                value:
+                  access_token: ya29.a0AfH6SMBx...
+                summary: Access Token Flow
+                description: Legacy support - use access token directly
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequestRequest'
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthLoginResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    user:
+                      pk: 550e8400-e29b-41d4-a716-446655440000
+                      username: john.doe
+                      email: john.doe@gmail.com
+                      first_name: John
+                      last_name: Doe
+                    token: 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
+                  summary: Success Response
+          description: Login successful. JWT tokens set in HTTP-only cookies.
+        '400':
+          description: Login failed - invalid code/token or Google API error
+  /api/auth/login/:
+    post:
+      operationId: auth_login
+      description: Authenticates a user with username (or email alias) and password,
+        verifies email ownership, then issues new HttpOnly JWT cookies. The response
+        includes the serialized user profile with UUID identifiers.
+      summary: Authenticate user and set JWT cookies
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+            examples:
+              LoginWithUsername:
+                value:
+                  username: founder1
+                  password: StrongPass123!
+                summary: Login with username
+              LoginWithEmail:
+                value:
+                  username: founder1@example.com
+                  password: StrongPass123!
+                summary: When frontend sends email via username field
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                LoginSuccess:
+                  value:
+                    user:
+                      id: 8d8d8a34-8a0c-4a0b-92bb-6de93882e298
+                      username: founder1
+                      email: founder1@example.com
+                      agent_count: 2
+                  summary: Login success
+          description: Login succeeded. HttpOnly access/refresh cookies were issued.
+        '400':
+          description: Missing username/email or password.
+        '401':
+          description: Credentials are invalid.
+        '403':
+          description: Email verification required.
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout
+      description: Removes the HttpOnly `access` and `refresh` cookies for the authenticated
+        user and deletes any DRF token if present. No request body is required—authentication
+        comes from the cookies.
+      summary: Logout current user and clear JWT cookies
+      tags:
+      - auth
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+              examples:
+                LogoutSuccess:
+                  value:
+                    message: Successfully logged out
+                  summary: Logout success
+          description: Logout success. Cookies cleared.
+        '401':
+          description: Authentication required.
+  /api/auth/me/:
+    get:
+      operationId: auth_me
+      description: Returns the authenticated user profile (UUID id, username, email,
+        agent_count). Authentication relies on the JWT access token stored in the
+        HttpOnly cookie. This is the single source of truth for “current user”.
+      summary: Retrieve authenticated user profile
+      tags:
+      - auth
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                CurrentUser:
+                  value:
+                    id: 8d8d8a34-8a0c-4a0b-92bb-6de93882e298
+                    username: founder1
+                    email: founder1@example.com
+                    agent_count: 2
+                  summary: Current user
+          description: Current user profile.
+        '401':
+          description: Authentication required.
+  /api/auth/password/forgot/:
+    post:
+      operationId: auth_password_reset_request
+      description: Initiates the password reset flow for the provided email. Always
+        returns success to avoid leaking which accounts exist. Generates a uid/token
+        pair and emails a reset link that expires using Django’s default token generator.
+      summary: Send password reset email
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetRequestResponse'
+          description: ''
+  /api/auth/password/reset/:
+    post:
+      operationId: auth_password_reset_confirm
+      description: Completes the password reset flow using the uid/token pair from
+        the email link. Validates password strength and sets the new password for
+        the matching user.
+      summary: Reset password using uid/token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetConfirmResponse'
+          description: ''
+        '400':
+          description: Invalid uid/token or password validation error
+  /api/auth/register/:
+    post:
+      operationId: auth_register
+      description: Register a new user with username, email, password and password_confirm.
+        On success, JWT tokens are set as HttpOnly cookies; the response contains
+        the user only.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+          description: User created
+        '400':
+          description: Validation error
+  /api/auth/token/refresh-cookie/:
+    post:
+      operationId: auth_token_refresh_cookie_create
+      description: |-
+        Refreshes the JWT access token using the refresh token from cookies.
+
+        Flow:
+        1. Reads the 'refresh' HttpOnly cookie
+        2. Validates the refresh token
+        3. Generates a new access token
+        4. Sets the new access token in the 'access' HttpOnly cookie (24 hours expiry)
+        5. Returns success message
+
+        This is needed because access tokens expire after 24 hours, and the frontend
+        needs to refresh them periodically to maintain authentication.
+      tags:
+      - auth
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/connections/:
+    get:
+      operationId: connections_list
+      description: 'Composio connections API. Security & scoping: All endpoints require
+        authentication (IsAuthenticated). The request is authenticated via your configured
+        auth (e.g., JWT in HttpOnly cookies). DRF authenticators verify the token,
+        load the user, and set request.user. Every query is scoped with get_queryset()
+        to request.user, so users can only list/retrieve/delete their own connections.'
+      tags:
+      - connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComposioConnection'
+          description: ''
+    post:
+      operationId: connections_create
+      description: 'Starts Composio auth and upserts a local connection. **Authentication
+        required.** Flow: (1) Authenticates user (returns 401 if not authenticated).
+        (2) Reads tool_name from body (WhatsApp may include waba_id, phone_number_id).
+        (3) Calls AgentService.authenticate_tool(tool_name, ...), which contacts Composio
+        and returns auth_url and auth_config_id. (4) Upserts a local ComposioConnection
+        for request.user with is_active=False and metadata.status="pending_auth".
+        (5) Returns { success, auth_url, connection }. Security: Authentication enforced
+        via IsAuthenticated permission. User context is always derived from the verified
+        token, never from request body. Status codes: 201 if a new local record was
+        created, 200 if an existing record was updated.'
+      tags:
+      - connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionCreateRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionCreateRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionCreateRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionAuthResponse'
+          description: Created and initialized auth flow
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionAuthResponse'
+          description: Updated existing pending connection and returned auth URL
+        '400':
+          description: Validation or Composio error
+        '401':
+          description: Authentication credentials were not provided or are invalid
+        '500':
+          description: Unexpected server error
+  /api/connections/{id}/:
+    get:
+      operationId: connections_retrieve
+      description: 'Composio connections API. Security & scoping: All endpoints require
+        authentication (IsAuthenticated). The request is authenticated via your configured
+        auth (e.g., JWT in HttpOnly cookies). DRF authenticators verify the token,
+        load the user, and set request.user. Every query is scoped with get_queryset()
+        to request.user, so users can only list/retrieve/delete their own connections.
+        The {id} path param refers to the local primary key of the ComposioConnection
+        row (not the external Composio connection id).'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Connection ID (integer)
+        required: true
+      tags:
+      - connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComposioConnection'
+          description: ''
+    delete:
+      operationId: connections_destroy
+      description: 'Composio connections API. Security & scoping: All endpoints require
+        authentication (IsAuthenticated). The request is authenticated via your configured
+        auth (e.g., JWT in HttpOnly cookies). DRF authenticators verify the token,
+        load the user, and set request.user. Every query is scoped with get_queryset()
+        to request.user, so users can only list/retrieve/delete their own connections.
+        The {id} path param refers to the local primary key of the ComposioConnection
+        row (not the external Composio connection id).'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Connection ID (integer)
+        required: true
+      tags:
+      - connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisconnectResponse'
+          description: Disconnected from Composio and deleted local record
+        '401':
+          description: Authentication credentials were not provided or are invalid
+        '404':
+          description: Connection not found or not owned by user
+        '500':
+          description: Unexpected server error
+  /api/connections/available_tools/:
+    get:
+      operationId: connections_available_tools
+      description: "Returns all available tools that can be connected with their metadata
+        and connection status. **Authentication required.** This endpoint automatically
+        syncs connections from Composio API (ground truth) and returns the current
+        connection status for each tool. \n\n**Behavior:**\n1. Fetches active connections
+        from Composio API\n2. Updates local database with ground truth\n3. Preserves
+        auth_config_id from initial OAuth flow\n4. Marks connections no longer in
+        Composio as inactive\n5. Returns all available tools with is_active status
+        and connection_id\n\n**Response fields:**\n- `is_active`: Boolean indicating
+        if the tool is currently connected\n- `connection_id`: Database ID of the
+        connection (null if not connected). Use this ID to delete the connection via
+        DELETE /api/connections/{id}/\n\n**Side effects:** Writes to database (updates
+        connection status)\n\n**Use case:** Call this endpoint when user visits the
+        integrations page to display all available tools with real-time connection
+        status. This replaces the need to call check_connections separately."
+      summary: Get available tools with connection status
+      tags:
+      - connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableToolsResponse'
+              examples:
+                AvailableToolsWithConnectionStatus:
+                  value:
+                    tools:
+                    - tool_name: GMAIL
+                      name: Gmail
+                      description: Send, receive, and manage emails with Gmail integration
+                      category: communication
+                      is_active: true
+                      connection_id: 42
+                    - tool_name: GOOGLEDRIVE
+                      name: Google Drive
+                      description: Upload, download, and manage files in Google Drive
+                      category: productivity
+                      is_active: false
+                      connection_id: null
+                    - tool_name: SLACK
+                      name: Slack
+                      description: Send messages and manage Slack workspace communications
+                      category: messaging
+                      is_active: true
+                      connection_id: 87
+                    - tool_name: TWITTER
+                      name: Twitter
+                      description: Post tweets, manage followers, and interact on
+                        Twitter
+                      category: social
+                      is_active: false
+                      connection_id: null
+                    count: 18
+                  summary: Available Tools with Connection Status
+          description: List of all available tools with metadata and connection status
+        '401':
+          description: Authentication credentials not provided or invalid
+        '500':
+          description: Unexpected server error
+  /api/connections/tool_slugs/:
+    get:
+      operationId: connections_tool_slugs
+      description: "Returns the list of action slugs available for a specific tool.
+        **Authentication required.** \n\nThis endpoint retrieves the predefined list
+        of tool slugs (actions) that are available for a given tool from the composio_config.py
+        configuration. \n\n**Parameters:**\n- `tool_name` (query parameter): The name
+        of the tool (e.g., \"GMAIL\", \"GOOGLEDRIVE\")\n\n**Returns:**\n- List of
+        action slugs for the specified tool\n- Tool name that was queried\n- Count
+        of slugs returned"
+      summary: Get tool slugs for a specific tool
+      parameters:
+      - in: query
+        name: tool_name
+        schema:
+          type: string
+        description: The name of the tool to get slugs for (e.g., GMAIL, GOOGLEDRIVE)
+        required: true
+      tags:
+      - connections
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: List of tool slugs
+        '400':
+          description: Tool name not provided or tool not found
+        '401':
+          description: Authentication credentials not provided or invalid
+        '500':
+          description: Unexpected server error
+  /api/credits/add/:
+    post:
+      operationId: credits_add
+      description: |-
+        Add credits to a user account. This endpoint is restricted to admin users only (staff/superuser). Regular users cannot add credits to their own or other accounts.
+
+        **Request Body:**
+        - `user_id`: UUID of the user to credit
+        - `amount`: Number of credits to add (minimum 1)
+        - `description`: Optional reason for adding credits
+      summary: Add credits to a user (Admin only)
+      tags:
+      - credits
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCreditsRequestRequest'
+            examples:
+              RequestExample:
+                value:
+                  user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  amount: 50
+                  description: Welcome bonus
+                summary: Request Example
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddCreditsRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddCreditsRequestRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddCreditsResponse'
+              examples:
+                SuccessResponse:
+                  value:
+                    message: Successfully added 50 credits to user john
+                    user_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    credits_added: 50
+                    new_balance: 150
+                  summary: Success Response
+          description: ''
+  /api/credits/balance/:
+    get:
+      operationId: credits_balance
+      description: |-
+        Returns the current user's credit balance and historical usage. Credits are deducted for each message sent to an agent (1 credit per message).
+
+        **Response Fields:**
+        - `total_credits`: Current available credits
+        - `credits_used`: Total credits consumed (historical)
+      summary: Get user credit balance
+      tags:
+      - credits
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditBalance'
+              examples:
+                SuccessResponse:
+                  value:
+                    total_credits: 95
+                    credits_used: 5
+                  summary: Success Response
+          description: ''
+  /api/credits/history/:
+    get:
+      operationId: credits_usage_history
+      description: |-
+        Returns the user's credit usage history, showing all transactions including messages sent, credits added, etc. Ordered by most recent first. Returns last 50 transactions.
+
+        **Note:** Negative `credits_used` values indicate credits were added (not deducted).
+      summary: Get credit usage history
+      tags:
+      - credits
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UsageLog'
+              examples:
+                SuccessResponse:
+                  value:
+                  - - id: 1
+                      action_type: message
+                      action_type_display: Chat Message
+                      credits_used: 1
+                      credits_remaining: 99
+                      description: Chat message to Email Assistant
+                      metadata:
+                        message_length: 45
+                        agent_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                        agent_name: Email Assistant
+                      agent_name: Email Assistant
+                      created_at: '2025-11-26T10:30:00Z'
+                    - id: 2
+                      action_type: admin_add
+                      action_type_display: Admin Credit Addition
+                      credits_used: -50
+                      credits_remaining: 100
+                      description: Welcome bonus
+                      metadata:
+                        credits_added: 50
+                      agent_name: null
+                      created_at: '2025-11-26T10:00:00Z'
+                  summary: Success Response
+          description: ''
+  /api/csrf/:
+    get:
+      operationId: csrf_retrieve
+      description: |-
+        Sets a CSRF token cookie for the client.
+        This is needed for SPAs using cookie-based authentication to prevent CSRF attacks.
+      tags:
+      - csrf
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/docs/:
+    get:
+      operationId: docs_retrieve
+      description: SpectacularSwaggerView that suppresses false-positive warnings
+      tags:
+      - docs
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/docs/redoc/:
+    get:
+      operationId: docs_redoc_retrieve
+      description: SpectacularRedocView that suppresses false-positive warnings
+      tags:
+      - docs
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/files/:
+    get:
+      operationId: files_list_2
+      description: |-
+        API endpoint for uploading and managing file attachments.
+
+        Features:
+        - Users can upload files of any type
+        - Files are stored in the database as binary data (not on filesystem)
+        - Original filename, size, and MIME type are automatically detected
+        - Files can be attached to agent chat messages
+        - Files can be downloaded via the download endpoint
+        - All operations are scoped to the authenticated user
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileAttachment'
+          description: ''
+    post:
+      operationId: files_create
+      description: |-
+        Handles file uploads - stores file content in database.
+        Requires agent_id in request data.
+      tags:
+      - files
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileAttachmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FileAttachmentRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileAttachmentRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileAttachment'
+          description: ''
+  /api/files/{id}/:
+    get:
+      operationId: files_retrieve_2
+      description: |-
+        API endpoint for uploading and managing file attachments.
+
+        Features:
+        - Users can upload files of any type
+        - Files are stored in the database as binary data (not on filesystem)
+        - Original filename, size, and MIME type are automatically detected
+        - Files can be attached to agent chat messages
+        - Files can be downloaded via the download endpoint
+        - All operations are scoped to the authenticated user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileAttachment'
+          description: ''
+    delete:
+      operationId: files_destroy
+      description: |-
+        API endpoint for uploading and managing file attachments.
+
+        Features:
+        - Users can upload files of any type
+        - Files are stored in the database as binary data (not on filesystem)
+        - Original filename, size, and MIME type are automatically detected
+        - Files can be attached to agent chat messages
+        - Files can be downloaded via the download endpoint
+        - All operations are scoped to the authenticated user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/files/{id}/download/:
+    get:
+      operationId: files_download
+      description: Retrieves the binary file content from the database. Returns the
+        file with appropriate Content-Type header based on the stored MIME type.
+      summary: Download file content
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: File attachment UUID
+        required: true
+      tags:
+      - files
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: File content (binary). Returns the file with appropriate Content-Type
+            header based on the stored MIME type.
+        '401':
+          description: Authentication required
+        '404':
+          description: File not found or not owned by user
+  /api/schema/:
+    get:
+      operationId: schema_retrieve
+      description: SpectacularAPIView that suppresses false-positive warnings
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      tags:
+      - schema
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/telegram/webhook/{agent_id}/:
+    post:
+      operationId: telegram_webhook_create
+      description: |-
+        Webhook endpoint for receiving Telegram messages.
+        Called by Telegram when users send messages to the bot.
+      parameters:
+      - in: path
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - telegram
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/triggers/:
+    get:
+      operationId: triggers_list
+      description: Returns list of all triggers owned by the authenticated user. Automation
+        triggers API. All endpoints require authentication.
+      summary: List all triggers
+      tags:
+      - triggers
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trigger'
+          description: List of triggers
+        '401':
+          description: Authentication required
+    post:
+      operationId: triggers_create
+      description: Creates a new automation trigger. All endpoints require authentication.
+      summary: Create a new trigger
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: Trigger created
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+  /api/triggers/{id}/:
+    get:
+      operationId: triggers_retrieve
+      description: Returns details of a specific trigger by ID. All endpoints require
+        authentication.
+      summary: Get trigger details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Trigger ID (integer)
+        required: true
+      tags:
+      - triggers
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: Trigger details
+        '401':
+          description: Authentication required
+        '404':
+          description: Trigger not found
+    put:
+      operationId: triggers_update
+      description: Fully updates a trigger. All fields are required. All endpoints
+        require authentication.
+      summary: Update trigger (full)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Trigger ID (integer)
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: Trigger updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Trigger not found
+    patch:
+      operationId: triggers_partial_update
+      description: Partially updates a trigger. Only provided fields will be updated.
+        All endpoints require authentication.
+      summary: Update trigger (partial)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Trigger ID (integer)
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTriggerRequest'
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: Trigger updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Trigger not found
+    delete:
+      operationId: triggers_destroy
+      description: Deletes a trigger by ID. All endpoints require authentication.
+      summary: Delete trigger
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Trigger ID (integer)
+        required: true
+      tags:
+      - triggers
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Trigger deleted successfully
+        '401':
+          description: Authentication required
+        '404':
+          description: Trigger not found
+  /api/triggers/{id}/activate/:
+    post:
+      operationId: triggers_activate_create
+      description: Sets a trigger's status to 'active'.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/triggers/{id}/executions/:
+    get:
+      operationId: triggers_executions_retrieve
+      description: Gets the 50 most recent execution logs for a trigger.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - triggers
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/triggers/{id}/pause/:
+    post:
+      operationId: triggers_pause_create
+      description: Sets a trigger's status to 'paused'.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/triggers/{id}/stop/:
+    post:
+      operationId: triggers_stop_create
+      description: Sets a trigger's status to 'stopped'.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/triggers/{id}/test/:
+    post:
+      operationId: triggers_test_create
+      description: Manually runs a trigger's action prompt.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - triggers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TriggerRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/triggers/available/:
+    get:
+      operationId: triggers_available_retrieve
+      description: Returns the hardcoded list of available trigger types for the UI.
+      tags:
+      - triggers
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trigger'
+          description: ''
+  /api/workflows/:
+    get:
+      operationId: workflows_list
+      description: Returns list of all workflows owned by the authenticated user.
+        Visual workflow management API. All endpoints require authentication.
+      summary: List all workflows
+      tags:
+      - workflows
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workflow'
+          description: List of workflows
+        '401':
+          description: Authentication required
+    post:
+      operationId: workflows_create
+      description: Creates a new visual workflow. All endpoints require authentication.
+      summary: Create a new workflow
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: Workflow created
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+  /api/workflows/{id}/:
+    get:
+      operationId: workflows_retrieve
+      description: Returns details of a specific workflow by ID. All endpoints require
+        authentication.
+      summary: Get workflow details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Workflow ID (integer)
+        required: true
+      tags:
+      - workflows
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: Workflow details
+        '401':
+          description: Authentication required
+        '404':
+          description: Workflow not found
+    put:
+      operationId: workflows_update
+      description: Fully updates a workflow. All fields are required. All endpoints
+        require authentication.
+      summary: Update workflow (full)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Workflow ID (integer)
+        required: true
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: Workflow updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Workflow not found
+    patch:
+      operationId: workflows_partial_update
+      description: Partially updates a workflow. Only provided fields will be updated.
+        All endpoints require authentication.
+      summary: Update workflow (partial)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Workflow ID (integer)
+        required: true
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkflowRequest'
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: Workflow updated
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '404':
+          description: Workflow not found
+    delete:
+      operationId: workflows_destroy
+      description: Deletes a workflow by ID. All endpoints require authentication.
+      summary: Delete workflow
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Workflow ID (integer)
+        required: true
+      tags:
+      - workflows
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: Workflow deleted successfully
+        '401':
+          description: Authentication required
+        '404':
+          description: Workflow not found
+  /api/workflows/{id}/activate/:
+    post:
+      operationId: workflows_activate_create
+      description: Sets a workflow's status to 'active'.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/workflows/{id}/execute/:
+    post:
+      operationId: workflows_execute_create
+      description: |-
+        Manually executes a workflow.
+        (Currently a mock implementation).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/workflows/{id}/executions/:
+    get:
+      operationId: workflows_executions_retrieve
+      description: Gets the 50 most recent execution logs for a workflow.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - workflows
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/workflows/{id}/pause/:
+    post:
+      operationId: workflows_pause_create
+      description: Sets a workflow's status to 'paused'.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/workflows/duplicate/:
+    post:
+      operationId: workflows_duplicate_create
+      description: Creates a copy of an existing workflow.
+      tags:
+      - workflows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - CookieJWTAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+components:
+  schemas:
+    ActionTypeEnum:
+      enum:
+      - message
+      - tool_call
+      - admin_add
+      - purchase
+      type: string
+      description: |-
+        * `message` - Chat Message
+        * `tool_call` - Tool Execution
+        * `admin_add` - Admin Credit Addition
+        * `purchase` - Credit Purchase
+    AddAgentToolRequestRequest:
+      type: object
+      description: Request serializer for adding an agent tool
+      properties:
+        tool_name:
+          type: string
+          minLength: 1
+          description: Name of the tool to add (e.g., 'weather', 'calculator')
+      required:
+      - tool_name
+    AddAgentToolResponse:
+      type: object
+      description: Response serializer for adding an agent tool
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        agent_tools:
+          type: array
+          items:
+            type: string
+      required:
+      - agent_tools
+      - message
+      - success
+    AddCreditsRequestRequest:
+      type: object
+      description: Request serializer for adding credits (admin only)
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: UUID of the user to add credits to
+        amount:
+          type: integer
+          minimum: 1
+          description: Number of credits to add
+        description:
+          type: string
+          description: Optional reason for adding credits
+      required:
+      - amount
+      - user_id
+    AddCreditsResponse:
+      type: object
+      description: Response serializer for adding credits
+      properties:
+        message:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        credits_added:
+          type: integer
+        new_balance:
+          type: integer
+      required:
+      - credits_added
+      - message
+      - new_balance
+      - user_id
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Unique identifier for the agent
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        prompt:
+          type: string
+          description: System prompt for the agent
+        tools:
+          readOnly: true
+        app_connections:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+          description: List of tool names to enable for this agent (e.g., ['GMAIL',
+            'SLACK'])
+        agent_tools:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        message_count:
+          type: integer
+          readOnly: true
+        avatar_base64:
+          type: string
+          nullable: true
+          description: Base64-encoded avatar image for display (read-only)
+          readOnly: true
+      required:
+      - agent_tools
+      - avatar_base64
+      - created_at
+      - id
+      - message_count
+      - prompt
+      - tools
+      - updated_at
+      - user
+    AgentAvailableTool:
+      type: object
+      description: Serializer for individual tool in agent available tools response
+      properties:
+        tool_name:
+          type: string
+          description: Backend tool identifier (e.g., 'GMAIL', 'SLACK')
+        name:
+          type: string
+          description: Display name of the tool (e.g., 'Gmail', 'Slack')
+        description:
+          type: string
+          description: Description of what the tool does
+        category:
+          type: string
+          description: Category classification (e.g., 'communication', 'productivity')
+        is_connected_to_account:
+          type: boolean
+          description: True if tool is connected at account level (via /api/connections/)
+        is_connected_to_agent:
+          type: boolean
+          description: True if this specific agent is using the tool
+        connection_id:
+          type: integer
+          nullable: true
+          description: Database ID of the account-level connection. Null if not connected.
+      required:
+      - category
+      - connection_id
+      - description
+      - is_connected_to_account
+      - is_connected_to_agent
+      - name
+      - tool_name
+    AgentAvailableToolsResponse:
+      type: object
+      description: Serializer for agent available tools endpoint response
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentAvailableTool'
+          description: List of all available tools with agent-specific connection
+            status
+        count:
+          type: integer
+          description: Total number of available tools
+      required:
+      - count
+      - tools
+    AgentChatRequestRequest:
+      type: object
+      description: Request serializer for agent chat endpoint (agent ID comes from
+        URL)
+      properties:
+        message:
+          type: string
+          minLength: 1
+          description: The message to send to the agent
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: Optional list of files to upload inline with the message (automatically
+            marked as temporary and deleted after use). All persistent files from
+            the agent's database are automatically loaded.
+        is_ephemeral:
+          type: boolean
+          default: false
+          description: If true, the conversation will not be saved to the database
+            (for embedded/public use)
+      required:
+      - message
+    AgentChatResponse:
+      type: object
+      description: Response serializer for agent chat endpoint
+      properties:
+        user_message:
+          allOf:
+          - $ref: '#/components/schemas/ChatMessage'
+          description: The user message that was sent
+        assistant_message:
+          allOf:
+          - $ref: '#/components/schemas/ChatMessage'
+          description: The assistant's response message
+      required:
+      - assistant_message
+      - user_message
+    AgentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        prompt:
+          type: string
+          minLength: 1
+          description: System prompt for the agent
+        app_connections:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: List of tool names to enable for this agent (e.g., ['GMAIL',
+            'SLACK'])
+        avatar:
+          type: string
+          format: binary
+          writeOnly: true
+          description: Avatar image file (JPG or PNG, max 5MB)
+      required:
+      - prompt
+    AgentTool:
+      type: object
+      description: Serializer for individual agent tool
+      properties:
+        tool_name:
+          type: string
+          description: Backend tool identifier (e.g., 'weather', 'calculator')
+        name:
+          type: string
+          description: Display name of the tool (e.g., 'Weather', 'Calculator')
+        description:
+          type: string
+          description: Description of what the tool does
+        icon:
+          type: string
+          description: Emoji icon for the tool
+        category:
+          type: string
+          description: Category classification (e.g., 'information', 'utility')
+        is_enabled:
+          type: boolean
+          description: True if this tool is enabled for the agent
+      required:
+      - category
+      - description
+      - icon
+      - is_enabled
+      - name
+      - tool_name
+    AgentToolsResponse:
+      type: object
+      description: Response serializer for agent tools list
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentTool'
+          description: List of all available agent tools with metadata and enabled
+            status
+        count:
+          type: integer
+          description: Total number of available agent tools
+      required:
+      - count
+      - tools
+    AvailableTool:
+      type: object
+      description: Serializer for individual tool in available tools response
+      properties:
+        tool_name:
+          type: string
+          description: Backend tool identifier (e.g., 'GMAIL', 'SLACK')
+        name:
+          type: string
+          description: Display name of the tool (e.g., 'Gmail', 'Slack')
+        description:
+          type: string
+          description: Description of what the tool does
+        category:
+          type: string
+          description: Category classification (e.g., 'communication', 'productivity')
+        is_active:
+          type: boolean
+          description: True if user is connected to this tool, false otherwise
+        connection_id:
+          type: integer
+          nullable: true
+          description: Database ID of the connection. Null if not connected. Use this
+            ID to delete the connection.
+      required:
+      - category
+      - connection_id
+      - description
+      - is_active
+      - name
+      - tool_name
+    AvailableToolsResponse:
+      type: object
+      description: Serializer for available tools endpoint response
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableTool'
+          description: List of all available tools with metadata and connection status
+        count:
+          type: integer
+          description: Total number of available tools
+      required:
+      - count
+      - tools
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        content:
+          type: string
+        attachments:
+          description: List of file attachments
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agent
+      - content
+      - created_at
+      - id
+      - role
+    ComposioConnection:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        tool_name:
+          type: string
+          description: Tool identifier (e.g., 'GMAIL', 'GITHUB')
+          maxLength: 100
+        auth_config_id:
+          type: string
+          description: Composio auth config ID
+          maxLength: 200
+        connected_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_used:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+        metadata:
+          description: Additional connection metadata
+      required:
+      - connected_at
+      - id
+      - last_used
+      - tool_name
+      - user
+    ConnectTelegramBotRequest:
+      type: object
+      description: Serializer for connecting a Telegram bot to an agent
+      properties:
+        bot_token:
+          type: string
+          minLength: 1
+          description: Telegram bot token from @BotFather (e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)
+      required:
+      - bot_token
+    ConnectionAuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        auth_url:
+          type: string
+        connection:
+          $ref: '#/components/schemas/ComposioConnection'
+      required:
+      - connection
+      - success
+    ConnectionCreateRequestRequest:
+      type: object
+      properties:
+        tool_name:
+          type: string
+          minLength: 1
+        waba_id:
+          type: string
+        phone_number_id:
+          type: string
+      required:
+      - tool_name
+    CreditBalance:
+      type: object
+      description: Serializer for user credit balance
+      properties:
+        total_credits:
+          type: integer
+          description: Current credit balance
+        credits_used:
+          type: integer
+          description: Total credits used historically
+      required:
+      - credits_used
+      - total_credits
+    DisconnectMessagingChannelPlatformEnum:
+      enum:
+      - telegram
+      - whatsapp
+      type: string
+      description: |-
+        * `telegram` - telegram
+        * `whatsapp` - whatsapp
+    DisconnectMessagingChannelRequest:
+      type: object
+      description: Serializer for disconnecting a messaging channel
+      properties:
+        platform:
+          allOf:
+          - $ref: '#/components/schemas/DisconnectMessagingChannelPlatformEnum'
+          description: |-
+            Platform to disconnect (telegram or whatsapp)
+
+            * `telegram` - telegram
+            * `whatsapp` - whatsapp
+      required:
+      - platform
+    DisconnectResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        error:
+          type: string
+      required:
+      - success
+    EmailVerificationConfirmResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    EmailVerificationResendResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    FileAttachment:
+      type: object
+      description: Serializer for file attachments stored in database
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        agent_name:
+          type: string
+          readOnly: true
+        original_filename:
+          type: string
+          maxLength: 255
+        file_size:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Size in bytes
+        mime_type:
+          type: string
+          maxLength: 100
+        is_temporary:
+          type: boolean
+          default: false
+          description: If true, file will be auto-deleted after being used in a message
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        download_url:
+          type: string
+          nullable: true
+          description: Returns the URL to download the file content
+          readOnly: true
+      required:
+      - agent_name
+      - download_url
+      - id
+      - original_filename
+      - uploaded_at
+    FileAttachmentRequest:
+      type: object
+      description: Serializer for file attachments stored in database
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+          writeOnly: true
+          description: UUID of the agent this file belongs to
+        original_filename:
+          type: string
+          minLength: 1
+          maxLength: 255
+        file_size:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Size in bytes
+        mime_type:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_temporary:
+          type: boolean
+          default: false
+          description: If true, file will be auto-deleted after being used in a message
+      required:
+      - agent_id
+      - original_filename
+    GitHubLoginRequestRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        access_token:
+          type: string
+          minLength: 1
+    GoogleLoginRequestRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+          minLength: 1
+          description: Google access token or ID token
+        id_token:
+          type: string
+          minLength: 1
+          description: Google ID token (JWT)
+        code:
+          type: string
+          minLength: 1
+          description: Authorization code from Google OAuth (for auth-code flow)
+        code_verifier:
+          type: string
+          minLength: 1
+          description: PKCE code verifier (if using PKCE)
+    InstantiateTemplateRequestRequest:
+      type: object
+      description: Request serializer for instantiating a template
+      properties:
+        template_id:
+          type: string
+          format: uuid
+          description: UUID of the agent template to instantiate
+      required:
+      - template_id
+    InstantiateTemplateResponse:
+      type: object
+      description: Response serializer for template instantiation
+      properties:
+        agent:
+          allOf:
+          - $ref: '#/components/schemas/Agent'
+          description: The newly created agent
+        message:
+          type: string
+          description: Success message
+        missing_connections:
+          type: array
+          items:
+            type: string
+          description: List of tools that require connection at account level
+      required:
+      - agent
+      - message
+      - missing_connections
+    LoginRequestRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - user
+    LogoutResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    MessagingChannel:
+      type: object
+      description: Serializer for messaging channel connections
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        platform:
+          $ref: '#/components/schemas/MessagingChannelPlatformEnum'
+        platform_display:
+          type: string
+          readOnly: true
+        bot_username:
+          type: string
+          description: Telegram bot username
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/MessagingChannelStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        message_count:
+          type: integer
+          readOnly: true
+          description: Total messages processed
+        last_message_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - last_message_at
+      - message_count
+      - platform
+      - platform_display
+      - status_display
+      - updated_at
+    MessagingChannelPlatformEnum:
+      enum:
+      - telegram
+      - whatsapp
+      type: string
+      description: |-
+        * `telegram` - Telegram
+        * `whatsapp` - WhatsApp
+    MessagingChannelStatusEnum:
+      enum:
+      - active
+      - inactive
+      - error
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+        * `error` - Error
+    OAuthLoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - user
+    PasswordResetConfirmRequestRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - password_confirm
+      - token
+      - uid
+    PasswordResetConfirmResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    PasswordResetRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PasswordResetRequestResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    PatchedAgentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        prompt:
+          type: string
+          minLength: 1
+          description: System prompt for the agent
+        app_connections:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: List of tool names to enable for this agent (e.g., ['GMAIL',
+            'SLACK'])
+        avatar:
+          type: string
+          format: binary
+          writeOnly: true
+          description: Avatar image file (JPG or PNG, max 5MB)
+    PatchedTriggerRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        trigger_type:
+          $ref: '#/components/schemas/TriggerTypeEnum'
+        status:
+          $ref: '#/components/schemas/TriggerStatusEnum'
+        trigger_slug:
+          type: string
+          minLength: 1
+          description: Composio trigger slug (e.g., GMAIL_NEW_GMAIL_MESSAGE)
+          maxLength: 200
+        trigger_config:
+          description: Trigger configuration (e.g., schedule, filters)
+        action_prompt:
+          type: string
+          minLength: 1
+          description: What the agent should do when triggered
+    PatchedWorkflowRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/WorkflowStatusEnum'
+        nodes:
+          description: Workflow nodes (triggers, actions, conditions)
+        edges:
+          description: Connections between nodes
+        viewport:
+          description: Viewport position and zoom
+    RegistrationResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - user
+    RoleEnum:
+      enum:
+      - user
+      - assistant
+      - system
+      type: string
+      description: |-
+        * `user` - User
+        * `assistant` - Assistant
+        * `system` - System
+    SuggestedPromptsRequestRequest:
+      type: object
+      description: Request serializer for generating suggested prompts
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          description: The agent's purpose/prompt used to generate relevant example
+            prompts
+        app_connections:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: List of tool names the agent will use (e.g., ['GMAIL', 'SLACK'])
+      required:
+      - prompt
+    SuggestedPromptsResponse:
+      type: object
+      description: Response serializer for suggested prompts
+      properties:
+        suggested_prompts:
+          type: array
+          items:
+            type: string
+          description: List of 3 suggested prompts the user can use with this agent
+      required:
+      - suggested_prompts
+    Trigger:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+        agent_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        trigger_type:
+          $ref: '#/components/schemas/TriggerTypeEnum'
+        status:
+          $ref: '#/components/schemas/TriggerStatusEnum'
+        composio_trigger_id:
+          type: string
+          readOnly: true
+          description: Composio trigger ID
+        trigger_slug:
+          type: string
+          description: Composio trigger slug (e.g., GMAIL_NEW_GMAIL_MESSAGE)
+          maxLength: 200
+        trigger_config:
+          description: Trigger configuration (e.g., schedule, filters)
+        action_prompt:
+          type: string
+          description: What the agent should do when triggered
+        trigger_count:
+          type: integer
+          readOnly: true
+          description: Number of times triggered
+        last_triggered:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action_prompt
+      - agent
+      - agent_name
+      - composio_trigger_id
+      - created_at
+      - id
+      - last_triggered
+      - name
+      - trigger_count
+      - trigger_slug
+      - trigger_type
+      - updated_at
+      - user
+    TriggerRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        trigger_type:
+          $ref: '#/components/schemas/TriggerTypeEnum'
+        status:
+          $ref: '#/components/schemas/TriggerStatusEnum'
+        trigger_slug:
+          type: string
+          minLength: 1
+          description: Composio trigger slug (e.g., GMAIL_NEW_GMAIL_MESSAGE)
+          maxLength: 200
+        trigger_config:
+          description: Trigger configuration (e.g., schedule, filters)
+        action_prompt:
+          type: string
+          minLength: 1
+          description: What the agent should do when triggered
+      required:
+      - action_prompt
+      - agent
+      - name
+      - trigger_slug
+      - trigger_type
+    TriggerStatusEnum:
+      enum:
+      - active
+      - paused
+      - stopped
+      type: string
+      description: |-
+        * `active` - Active
+        * `paused` - Paused
+        * `stopped` - Stopped
+    TriggerTypeEnum:
+      enum:
+      - schedule
+      - event
+      type: string
+      description: |-
+        * `schedule` - Scheduled
+        * `event` - Event-based
+    UsageLog:
+      type: object
+      description: Serializer for usage logs
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        action_type_display:
+          type: string
+          readOnly: true
+        credits_used:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Number of credits used (positive) or added (negative)
+        credits_remaining:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: User's credit balance after this transaction
+        description:
+          type: string
+          description: Optional description of the action
+        metadata:
+          description: Additional metadata (e.g., message length, tool name)
+        agent_name:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action_type_display
+      - agent_name
+      - created_at
+      - credits_remaining
+      - credits_used
+      - id
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Unique identifier for the user
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        agent_count:
+          type: integer
+          readOnly: true
+        total_credits:
+          type: integer
+          readOnly: true
+          description: Current credit balance. Each message costs credits.
+        credits_used:
+          type: integer
+          readOnly: true
+          description: Total credits used historically for tracking
+      required:
+      - agent_count
+      - credits_used
+      - id
+      - total_credits
+      - username
+    UserRegistrationRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - password_confirm
+      - username
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+          nullable: true
+        agent_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/WorkflowStatusEnum'
+        nodes:
+          description: Workflow nodes (triggers, actions, conditions)
+        edges:
+          description: Connections between nodes
+        viewport:
+          description: Viewport position and zoom
+        execution_count:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          readOnly: true
+        last_executed:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        node_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agent_name
+      - created_at
+      - execution_count
+      - id
+      - last_executed
+      - name
+      - node_count
+      - updated_at
+      - user
+    WorkflowRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          format: uuid
+          description: Unique identifier for the agent
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/WorkflowStatusEnum'
+        nodes:
+          description: Workflow nodes (triggers, actions, conditions)
+        edges:
+          description: Connections between nodes
+        viewport:
+          description: Viewport position and zoom
+      required:
+      - name
+    WorkflowStatusEnum:
+      enum:
+      - draft
+      - active
+      - paused
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `active` - Active
+        * `paused` - Paused
+  securitySchemes:
+    CookieJWTAuth:
+      type: apiKey
+      in: cookie
+      name: access
+      description: JWT access token stored in HttpOnly cookie
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"
+tags:
+- name: Authentication
+  description: User authentication and registration
+- name: Agents
+  description: AI Agent management
+- name: Connections
+  description: Tool integrations (Gmail, Slack, etc.)
+- name: files
+  description: File uploads and management
+- name: Workflows
+  description: Workflow automation

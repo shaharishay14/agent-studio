@@ -1,0 +1,7 @@
+# Environment files (keep the committed examples)
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+*.pem

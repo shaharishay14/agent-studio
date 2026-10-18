@@ -1,0 +1,51 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+*.log
+*.pot
+*.mo
+db.sqlite3
+.pytest_cache
+.coverage
+htmlcov/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Testing
+# tests/  # Commented out to allow performance benchmarks in production
+# test*.py
+
+# Documentation
+README.md
+docs/
