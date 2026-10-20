@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.conf import settings
 from django.utils import timezone
 from asgiref.sync import sync_to_async
-from ..models import Agent, ComposioConnection, ChatMessage, FileAttachment, Trigger, TriggerExecution, Workflow, WorkflowExecution, UserProfile, User, AgentTemplate, UsageLog, MessagingChannel, MessagingSession
+from ..models import Agent, ComposioConnection, ChatMessage, ToolApproval, FileAttachment, Trigger, TriggerExecution, Workflow, WorkflowExecution, UserProfile, User, AgentTemplate, UsageLog, MessagingChannel, MessagingSession
 from .. import serializers
 from ..serializers import (
     UserSerializer, UserRegistrationSerializer, AgentSerializer,
@@ -1499,6 +1499,8 @@ class AgentViewSet(viewsets.ModelViewSet):
                         event_str = send_content_delta_event(data['content'], data.get('index', 0))
                     elif event_type == 'heartbeat':
                         event_str = format_sse_event('heartbeat', data)
+                    elif event_type in ('approval_required', 'approval_resolved'):
+                        event_str = format_sse_event(event_type, data)
                     elif event_type == 'error':
                         event_str = send_error_event(data.get('error', 'Unknown error'))
 
@@ -1867,6 +1869,33 @@ class AgentViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'], url_path=r'approvals/(?P<approval_id>[0-9a-f-]+)')
+    def decide_approval(self, request, pk=None, approval_id=None):
+        """
+        Approves or denies a pending tool action. Body: {"decision": "approve" | "deny"}.
+        The waiting chat request picks up the decision from the database.
+        """
+        agent = self.get_object()  # 404 unless the agent belongs to request.user
+
+        decision = request.data.get('decision')
+        if decision not in ('approve', 'deny'):
+            return Response({'error': 'decision must be "approve" or "deny"'}, status=status.HTTP_400_BAD_REQUEST)
+
+        new_status = ToolApproval.STATUS_APPROVED if decision == 'approve' else ToolApproval.STATUS_DENIED
+
+        # Only a pending approval for this user and agent can change, and only once
+        updated = ToolApproval.objects.filter(
+            id=approval_id,
+            agent=agent,
+            user=request.user,
+            status=ToolApproval.STATUS_PENDING,
+        ).update(status=new_status, decided_at=timezone.now())
+
+        if not updated:
+            return Response({'error': 'Approval not found, already decided, or expired'}, status=status.HTTP_409_CONFLICT)
+
+        return Response({'success': True, 'status': new_status}, status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=['agents'],

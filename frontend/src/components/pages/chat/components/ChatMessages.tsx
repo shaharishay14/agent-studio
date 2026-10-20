@@ -2,7 +2,8 @@ import { ChatMessage } from './ChatMessage';
 import { StreamingMessage } from './StreamingMessage';
 import { ChatEmptyState } from './ChatEmptyState';
 import { TypingIndicator } from './TypingIndicator';
-import type { Agent, Message } from '../types';
+import { ApprovalCard } from './ApprovalCard';
+import type { Agent, Message, ToolApprovalRequest, ApprovalDecision } from '../types';
 
 interface ChatMessagesProps {
   isDarkMode: boolean;
@@ -12,6 +13,9 @@ interface ChatMessagesProps {
   isStreamingResponse: boolean;
   currentStreamingContent: string;
   status: string;
+  pendingApproval: ToolApprovalRequest | null;
+  isDecidingApproval: boolean;
+  onApprovalDecision: (decision: ApprovalDecision) => void;
 }
 
 export const ChatMessages = ({
@@ -21,7 +25,10 @@ export const ChatMessages = ({
   setMessageText,
   isStreamingResponse,
   currentStreamingContent,
-  status
+  status,
+  pendingApproval,
+  isDecidingApproval,
+  onApprovalDecision
 }: ChatMessagesProps) => {
   return (
     <div className="flex-1 p-2 md:p-6 overflow-y-auto chat-scrollbar">
@@ -52,6 +59,16 @@ export const ChatMessages = ({
               />
             )}
             
+            {/* The agent is waiting for the user to approve a write action */}
+            {pendingApproval && (
+              <ApprovalCard
+                isDarkMode={isDarkMode}
+                approval={pendingApproval}
+                isDeciding={isDecidingApproval}
+                onDecision={onApprovalDecision}
+              />
+            )}
+
             {/* Status indicator when streaming - 3 dots animation on left side */}
             {status && status.toLowerCase().includes('analyzing') && (
               <TypingIndicator 

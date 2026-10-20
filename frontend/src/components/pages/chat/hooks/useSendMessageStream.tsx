@@ -2,7 +2,8 @@ import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import type { Message } from '../types';
+import type { Message, ToolApprovalRequest, ApprovalDecision } from '../types';
+import { decideToolApproval } from '../requests';
 
 // פונקציה לקריאת cookie
 function getCookie(name: string): string | null {
@@ -53,6 +54,8 @@ export const useSendMessageStream = (agentId: string) => {
   const [status, setStatus] = useState('');
   const [currentStreamingContent, setCurrentStreamingContent] = useState('');
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(null);
+  const [isDecidingApproval, setIsDecidingApproval] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // מחרוזת את התוכן הנוכחי מה-stream
@@ -273,6 +276,7 @@ export const useSendMessageStream = (agentId: string) => {
 
             case 'done':
               
+              setPendingApproval(null);
               setStatus('');
               setIsSending(false);
               
@@ -289,11 +293,22 @@ export const useSendMessageStream = (agentId: string) => {
             case 'heartbeat':
               // סתם keep-alive, לא צריך לעשות כלום
               break;
+
+            case 'approval_required':
+              setPendingApproval(data as ToolApprovalRequest);
+              setStatus('Waiting for your approval...');
+              break;
+
+            case 'approval_resolved':
+              // The server stopped waiting (e.g. timed out) - hide the card
+              setPendingApproval(null);
+              break;
           }
         },
 
         onerror(error) {
           console.error('❌ שגיאת Stream:', error);
+          setPendingApproval(null);
 
           // ניקוי מלא
           clearStreaming();
@@ -330,6 +345,21 @@ export const useSendMessageStream = (agentId: string) => {
       setStatus('');
     }
   }, [agentId, queryClient, isSending, clearStreaming, addChunkToQueue]);
+
+  // Approve or deny the action the agent is waiting on
+  const respondToApproval = useCallback(async (decision: ApprovalDecision) => {
+    if (!pendingApproval) return;
+    setIsDecidingApproval(true);
+    try {
+      await decideToolApproval(agentId, pendingApproval.approval_id, decision);
+      setStatus(decision === 'approve' ? 'Approved - running action...' : 'Declined');
+    } catch {
+      toast.error('This approval is no longer pending');
+    } finally {
+      setPendingApproval(null);
+      setIsDecidingApproval(false);
+    }
+  }, [agentId, pendingApproval]);
 
   // פונקציה לשליחת הודעה מהשדה
   const onSendMessage = useCallback(() => {
@@ -368,12 +398,15 @@ export const useSendMessageStream = (agentId: string) => {
     status,
     currentStreamingContent,
     isStreamingResponse,
+    pendingApproval,
+    isDecidingApproval,
     
     // Functions
     handleSendMessage,
     onSendMessage,
     handleKeyPress,
     cancelSending,
+    respondToApproval,
   };
 };
 

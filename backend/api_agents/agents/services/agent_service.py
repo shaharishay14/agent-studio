@@ -29,6 +29,7 @@ from .model_selection_strategy import get_model_selection_strategy
 from .intent_resolution_engine import get_intent_engine
 from .pre_execution_validator import get_validator
 from .execution_logger import get_execution_logger
+from .tool_policy import PermissionGate, guard_function_tools
 from ...shared.utils import convert_image_to_base64
 
 # Configure logging
@@ -1675,6 +1676,9 @@ RESPONSE FORMAT:
             # PHASE 8: AGENT CREATION & EXECUTION
             # ============================================================
 
+            # PERMISSIONS: every tool call goes through the policy gate (read / approve / deny)
+            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback))
+
             composio_agent = ComposioAgent(
                 name=agent_model.name,
                 instructions=enhanced_instructions,
@@ -1920,14 +1924,18 @@ RESPONSE FORMAT:
                 await callback('error', {'error': safe_error})
             return await self._chat_without_tools(agent_model, message, chat_history, callback)
 
-    async def _run_agent_tool_call(self, tool_call, callback=None) -> str:
+    async def _run_agent_tool_call(self, tool_call, gate: PermissionGate, callback=None) -> str:
         """
         Executes one tool call from the model and returns the result as a JSON string.
-        Failures are returned as {"error": ...} so the model can see them and recover.
+        Failures and policy denials are returned as {"error": ...} so the model can see them and recover.
         """
         function_name = tool_call.function.name
         # SECURITY: Use safe JSON parsing to prevent malformed input attacks
         function_args = parse_json_safely(tool_call.function.arguments, default={})
+
+        blocked = await gate.check(function_name, function_args)
+        if blocked:
+            return blocked
 
         logger.info(f"🔨 Executing tool: {function_name}")
 
@@ -2124,6 +2132,8 @@ RESPONSE FORMAT:
 
             print(f"🔧 Chat with {len(agent_tools_functions)} agent tools enabled")
 
+            gate = PermissionGate(self.user, agent_model, callback)
+
             # === AGENT LOOP ===
             # Keep calling the model WITH tools until it answers in text,
             # or until we hit the step limit.
@@ -2156,7 +2166,7 @@ RESPONSE FORMAT:
                 messages.append(response_message)
 
                 for tool_call in tool_calls:
-                    result_content = await self._run_agent_tool_call(tool_call, callback)
+                    result_content = await self._run_agent_tool_call(tool_call, gate, callback)
                     messages.append({
                         "tool_call_id": tool_call.id,
                         "role": "tool",

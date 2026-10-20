@@ -6,6 +6,7 @@ export { ChatMessage } from './ChatMessage';
 export { StreamingMessage } from './StreamingMessage';
 export { ChatEmptyState } from './ChatEmptyState';
 export { ChatMessages } from './ChatMessages';
+export { ApprovalCard } from './ApprovalCard';
 export { ChatInputArea } from './ChatInputArea';
 export { SidebarToggleButton } from './SidebarToggleButton';
 export * from './modals';

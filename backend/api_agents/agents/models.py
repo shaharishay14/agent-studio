@@ -117,6 +117,14 @@ class Agent(models.Model):
         help_text="List of agent tool names, e.g., ['weather', 'calculator', 'yahoo_finance']"
     )
 
+    # Write actions the owner pre-approved for runs with nobody in the chat to click Approve
+    # (workflow triggers, messaging channels). Destructive actions can never be listed.
+    unattended_write_tools = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Write tool slugs allowed without live approval, e.g. ['GMAIL_SEND_EMAIL']"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -156,3 +164,34 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.agent.name} - {self.role}: {self.content[:50]}"
+
+
+class ToolApproval(models.Model):
+    """A write action the agent wants to run, waiting for the user's decision"""
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_DENIED = 'denied'
+    STATUS_EXPIRED = 'expired'
+    STATUS_PREAPPROVED = 'preapproved'  # ran unattended because the agent's owner allow-listed it
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_DENIED, 'Denied'),
+        (STATUS_EXPIRED, 'Expired'),
+        (STATUS_PREAPPROVED, 'Pre-approved'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agent = models.ForeignKey(Agent, on_delete=models.CASCADE, related_name='tool_approvals')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tool_approvals')
+    tool_name = models.CharField(max_length=200)
+    arguments = models.JSONField(default=dict, help_text="Exact arguments the agent wants to run the tool with")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.tool_name} ({self.status})"

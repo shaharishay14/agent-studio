@@ -30,7 +30,10 @@ function ChatArea({ agentId, agent, onToggleSidebar, isSidebarOpen, suggestedPro
     isSending,
     status,
     currentStreamingContent,
-    isStreamingResponse
+    isStreamingResponse,
+    pendingApproval,
+    isDecidingApproval,
+    respondToApproval
   } = useSendMessageStream(agentId);
   
   // שימוש ב-agent שהתקבל כ-prop
@@ -75,6 +78,9 @@ function ChatArea({ agentId, agent, onToggleSidebar, isSidebarOpen, suggestedPro
         isStreamingResponse={isStreamingResponse}
         currentStreamingContent={currentStreamingContent}
         status={status}
+        pendingApproval={pendingApproval}
+        isDecidingApproval={isDecidingApproval}
+        onApprovalDecision={respondToApproval}
       />
 
       <ChatInputArea 

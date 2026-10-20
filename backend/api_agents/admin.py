@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User, UserProfile
-from .models import Agent, ComposioConnection, ChatMessage, FileAttachment, Trigger, TriggerExecution
+from .models import Agent, ComposioConnection, ChatMessage, FileAttachment, Trigger, TriggerExecution, ToolApproval
 
 
 @admin.register(Agent)
@@ -30,6 +30,18 @@ class ChatMessageAdmin(admin.ModelAdmin):
     def content_preview(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     content_preview.short_description = 'Content'
+
+
+@admin.register(ToolApproval)
+class ToolApprovalAdmin(admin.ModelAdmin):
+    """Audit log of agent write actions - read-only, decisions are made in the chat UI"""
+    list_display = ['tool_name', 'agent', 'user', 'status', 'created_at', 'decided_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['tool_name', 'agent__name', 'user__username']
+    readonly_fields = ['agent', 'user', 'tool_name', 'arguments', 'status', 'created_at', 'decided_at']
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(FileAttachment)

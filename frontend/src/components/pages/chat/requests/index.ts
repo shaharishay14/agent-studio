@@ -1,5 +1,5 @@
 import { api } from '../../../../lib/axios';
-import type { Agent, Message, SendMessagePayload, SendMessageResponse, UpdateAgentPayload, AgentFile, UploadFileResponse, SuggestedPromptsPayload, SuggestedPromptsResponse, AvailableToolsResponse, AvailableAgentToolsResponse, AddAgentToolPayload, AddAgentToolResponse, ConnectTelegramBotRequest, TelegramBotResponse } from '../types';
+import type { Agent, Message, SendMessagePayload, SendMessageResponse, UpdateAgentPayload, AgentFile, UploadFileResponse, SuggestedPromptsPayload, SuggestedPromptsResponse, AvailableToolsResponse, AvailableAgentToolsResponse, AddAgentToolPayload, AddAgentToolResponse, ConnectTelegramBotRequest, TelegramBotResponse, ApprovalDecision } from '../types';
 
 export const getAgent = async (id: string): Promise<Agent> => {
   const response = await api.get<Agent>(`/agents/${id}/`);
@@ -98,6 +98,10 @@ export const downloadFile = async (fileId: string | number, fileName: string): P
 
 export const resetAgentMemory = async (agentId: string): Promise<void> => {
   await api.post(`/agents/${agentId}/reset-chat/`);
+};
+
+export const decideToolApproval = async (agentId: string, approvalId: string, decision: ApprovalDecision): Promise<void> => {
+  await api.post(`/agents/${agentId}/approvals/${approvalId}/`, { decision });
 };
 
 // First endpoint - available tools

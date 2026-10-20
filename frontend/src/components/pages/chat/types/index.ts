@@ -21,6 +21,15 @@ export interface Message {
   created_at: string;
 }
 
+export interface ToolApprovalRequest {
+  approval_id: string;
+  tool: string;
+  arguments: Record<string, unknown>;
+  timeout_seconds: number;
+}
+
+export type ApprovalDecision = 'approve' | 'deny';
+
 export interface SendMessagePayload {
   message: string;
   file_ids: number[];

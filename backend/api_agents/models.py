@@ -6,7 +6,7 @@ from their new locations in domain-specific modules.
 
 New structure:
 - authentication/models.py: User, UserProfile
-- agents/models.py: Agent, AgentTemplate, ChatMessage
+- agents/models.py: Agent, AgentTemplate, ChatMessage, ToolApproval
 - tools/models.py: ComposioConnection
 - workflows/models.py: Workflow, WorkflowExecution, Trigger, TriggerExecution
 - files/models.py: FileAttachment
@@ -16,7 +16,7 @@ New structure:
 
 # Import all models from domain modules
 from .authentication.models import User, UserProfile
-from .agents.models import Agent, AgentTemplate, ChatMessage
+from .agents.models import Agent, AgentTemplate, ChatMessage, ToolApproval
 from .tools.models import ComposioConnection
 from .workflows.models import Workflow, WorkflowExecution, Trigger, TriggerExecution
 from .files.models import FileAttachment
@@ -32,6 +32,7 @@ __all__ = [
     'Agent',
     'AgentTemplate',
     'ChatMessage',
+    'ToolApproval',
     # Tools
     'ComposioConnection',
     # Workflows

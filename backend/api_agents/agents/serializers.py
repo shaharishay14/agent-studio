@@ -71,6 +71,15 @@ class AgentSerializer(serializers.ModelSerializer):
     # Agent-specific tools (non-Composio) - read-only for now
     agent_tools = serializers.JSONField(read_only=True)
 
+    # Write actions allowed to run without live approval (workflows, messaging channels)
+    unattended_write_tools = FlexibleListField(
+        child=serializers.CharField(max_length=200),
+        required=False,
+        default=list,
+        allow_empty=True,
+        help_text="Write tool slugs pre-approved for unattended runs, e.g. ['GMAIL_SEND_EMAIL']. Destructive actions are rejected."
+    )
+
     # Template ID (nullable)
     template_id = serializers.UUIDField(source='template.id', read_only=True, allow_null=True, help_text="ID of the template used to create this agent (if any)")
 
@@ -81,13 +90,25 @@ class AgentSerializer(serializers.ModelSerializer):
         model = agent_models.Agent
         fields = [
             'name', 'prompt', 'avatar_base64', 'app_connections', 'agent_tools',
-            'missing_connections', 'created_at', 'id', 'template_id',
+            'unattended_write_tools', 'missing_connections', 'created_at', 'id', 'template_id',
             'user', 'updated_at', 'message_count', 'avatar'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
     def get_message_count(self, obj) -> int:
         return obj.messages.count()
+
+    def validate_unattended_write_tools(self, value):
+        """Only write actions can be pre-approved: reads don't need it, destructive/unknown ones are never allowed."""
+        from .services.tool_policy import classify_tool, ToolAccess
+
+        rejected = [tool for tool in value if classify_tool(tool) != ToolAccess.WRITE]
+        if rejected:
+            raise serializers.ValidationError(
+                f"Only write actions can be pre-approved. Not allowed: {', '.join(rejected)} "
+                "(read-only actions don't need approval; destructive or unrecognized actions are always blocked)."
+            )
+        return sorted(set(value))
 
     def get_missing_connections(self, obj) -> list:
         """Calculate which tools from template are not yet connected"""
