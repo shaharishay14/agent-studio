@@ -33,6 +33,9 @@ from ...shared.utils import convert_image_to_base64
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Max model calls with tools per user message before we force a final answer
+MAX_AGENT_STEPS = 8
+
 
 # Retry mechanism with exponential backoff and TTL
 def retry_with_backoff(max_retries=3, initial_delay=1.0, max_delay=10.0, exponential_base=2, ttl_seconds=30):
@@ -1892,6 +1895,48 @@ RESPONSE FORMAT:
                 await callback('error', {'error': safe_error})
             return await self._chat_without_tools(agent_model, message, chat_history, callback)
 
+    async def _run_agent_tool_call(self, tool_call, callback=None) -> str:
+        """
+        Executes one tool call from the model and returns the result as a JSON string.
+        Failures are returned as {"error": ...} so the model can see them and recover.
+        """
+        function_name = tool_call.function.name
+        # SECURITY: Use safe JSON parsing to prevent malformed input attacks
+        function_args = parse_json_safely(tool_call.function.arguments, default={})
+
+        logger.info(f"🔨 Executing tool: {function_name}")
+
+        if callback:
+            await callback('tool_call_start', {
+                'tool': function_name,
+                'parameters': function_args
+            })
+
+        try:
+            tool_result = await sync_to_async(self.agent_tools_service.execute_tool)(
+                function_name,
+                **function_args
+            )
+        except Exception as e:
+            tool_result = {'success': False, 'error': mask_sensitive_data(str(e))}
+
+        if callback:
+            await callback('tool_call_result', {
+                'tool': function_name,
+                'success': tool_result.get('success', False),
+                'result': tool_result.get('data') if tool_result.get('success') else None,
+                'error': tool_result.get('error') if not tool_result.get('success') else None
+            })
+
+        if tool_result.get('success'):
+            return json.dumps(tool_result['data'])
+        return json.dumps({'error': tool_result.get('error', 'Unknown error')})
+
+    async def _emit_content_words(self, content: str, callback) -> None:
+        """Sends the final answer to the UI word by word (same events as streaming)."""
+        for index, word in enumerate(re.findall(r'\S+\s*', content)):
+            await callback('content_delta', {'content': word, 'index': index})
+
     async def _chat_with_agent_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, is_data_fetch_only: bool = False) -> str:
         """
         Runs chat with agent-specific tools (weather, calculator, etc.).
@@ -1993,135 +2038,73 @@ RESPONSE FORMAT:
 
             print(f"🔧 Chat with {len(agent_tools_functions)} agent tools enabled")
 
-            # === ADD TIMEOUT (60 seconds) ===
-            # Make initial API call with function definitions
-            response = await asyncio.wait_for(
-                self.openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages,
-                    tools=agent_tools_functions,
-                    tool_choice="auto",
-                    temperature=0.7,
-                    max_completion_tokens=1500,
-                    timeout=45  # OpenAI client timeout
-                ),
-                timeout=60  # asyncio timeout (outer)
-            )
+            # === AGENT LOOP ===
+            # Keep calling the model WITH tools until it answers in text,
+            # or until we hit the step limit.
+            for step in range(1, MAX_AGENT_STEPS + 1):
+                logger.info(f"🔁 Agent step {step}/{MAX_AGENT_STEPS}")
 
-            response_message = response.choices[0].message
-            tool_calls = response_message.tool_calls
-
-            # If no tool calls, return the response directly
-            if not tool_calls:
-                return response_message.content
-
-            # Add assistant's response to messages
-            messages.append(response_message)
-
-            # Execute each tool call
-            for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                # SECURITY: Use safe JSON parsing to prevent malformed input attacks
-                function_args = parse_json_safely(tool_call.function.arguments, default={})
-
-                logger.info(f"🔨 Executing tool: {function_name}")
-
-                # Emit tool call start event
-                if callback:
-                    await callback('tool_call_start', {
-                        'tool': function_name,
-                        'parameters': function_args
-                    })
-
-                # Execute the tool
-                tool_result = await sync_to_async(self.agent_tools_service.execute_tool)(
-                    function_name,
-                    **function_args
+                response = await asyncio.wait_for(
+                    self.openai_client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=messages,
+                        tools=agent_tools_functions,
+                        tool_choice="auto",
+                        temperature=0.7,
+                        max_completion_tokens=1500,
+                        timeout=45  # OpenAI client timeout
+                    ),
+                    timeout=60  # asyncio timeout (outer)
                 )
 
-                # Emit tool call result event
-                if callback:
-                    await callback('tool_call_result', {
-                        'tool': function_name,
-                        'success': tool_result.get('success', False),
-                        'result': tool_result.get('data') if tool_result.get('success') else None,
-                        'error': tool_result.get('error') if not tool_result.get('success') else None
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls
+
+                # No tool calls -> the model is done, this is the final answer
+                if not tool_calls:
+                    final_content = response_message.content or ""
+                    if callback:
+                        await self._emit_content_words(final_content, callback)
+                    return final_content
+
+                messages.append(response_message)
+
+                for tool_call in tool_calls:
+                    result_content = await self._run_agent_tool_call(tool_call, callback)
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": tool_call.function.name,
+                        "content": result_content
                     })
 
-                # Format tool result for OpenAI
-                if tool_result.get('success'):
-                    result_content = json.dumps(tool_result['data'])
-                else:
-                    result_content = json.dumps({
-                        'error': tool_result.get('error', 'Unknown error')
-                    })
-
-                # Add tool result to messages
-                messages.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": function_name,
-                    "content": result_content
-                })
-
-            # Get final response from OpenAI with tool results
+            # === STEP LIMIT REACHED ===
+            # Force a final text answer from what the agent has so far (no tools)
+            logger.warning(f"⚠️ Agent hit step limit ({MAX_AGENT_STEPS}), forcing final answer")
             if callback:
                 await callback('status', {'status': 'responding', 'message': 'Generating response...'})
 
-            # === ADD TIMEOUT (60 seconds) ===
-            # ✅ Use streaming for final response with async for
+            messages.append({
+                "role": "system",
+                "content": "You have reached the maximum number of tool steps. "
+                           "Answer the user now using only the information gathered so far. "
+                           "If the task is not complete, say what is missing."
+            })
+
             final_response = await asyncio.wait_for(
                 self.openai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=messages,
                     temperature=0.7,
                     max_completion_tokens=1500,
-                    stream=True,
                     timeout=45  # OpenAI client timeout
                 ),
                 timeout=60  # asyncio timeout (outer)
             )
-
-            # Collect streaming content
-            full_content = ""
-            word_buffer = ""
-            word_index = 0
-
-            # ✅ Use async for - properly yields to event loop!
-            async for chunk in final_response:
-                if chunk.choices[0].delta.content:
-                    content_delta = chunk.choices[0].delta.content
-                    full_content += content_delta
-                    word_buffer += content_delta
-
-                    # Buffer and emit complete words if callback is provided
-                    if callback:
-                        delimiters = {' ', '\n', '\t', '.', ',', '!', '?', ';', ':'}
-                        if any(d in word_buffer for d in delimiters):
-                            delimiter_positions = [(word_buffer.find(d), d) for d in delimiters if d in word_buffer]
-                            delimiter_positions = [(pos, d) for pos, d in delimiter_positions if pos != -1]
-
-                            if delimiter_positions:
-                                pos, delimiter = min(delimiter_positions, key=lambda x: x[0])
-                                word = word_buffer[:pos + 1]
-
-                                if word.strip():
-                                    await callback('content_delta', {
-                                        'content': word,
-                                        'index': word_index
-                                    })
-                                    word_index += 1
-
-                                word_buffer = word_buffer[pos + 1:]
-
-            # Emit any remaining buffer
-            if callback and word_buffer.strip():
-                await callback('content_delta', {
-                    'content': word_buffer,
-                    'index': word_index
-                })
-
-            return full_content
+            final_content = final_response.choices[0].message.content or ""
+            if callback:
+                await self._emit_content_words(final_content, callback)
+            return final_content
 
         except asyncio.TimeoutError:
             print("⏱️ Agent tools chat timed out after 60 seconds")
