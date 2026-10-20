@@ -55,8 +55,9 @@ UNTRUSTED_OUTPUT_BUILTINS = {'web_search', 'read_website', 'search_youtube'}
 URL_FETCH_TOOLS = {'read_website': 'url'}
 URL_PATTERN = re.compile(r'https?://[^\s<>"\'`)\]}]+')
 
-# Argument names that hold message recipients, e.g. recipient_email, extra_recipients, to_email, cc, bcc
-RECIPIENT_ARGUMENT = re.compile(r'recipient|(^|_)(to|cc|bcc)(_|$)', re.IGNORECASE)
+# Argument names that say where an action goes: recipient_email, extra_recipients, to_email, cc, bcc,
+# Slack channel / channel_id, calendar attendees
+RECIPIENT_ARGUMENT = re.compile(r'recipient|channel|attendee|(^|_)(to|cc|bcc)(_|$)', re.IGNORECASE)
 EMAIL_ADDRESS = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
 
 # Explicit decisions for Composio slugs the verb rules get wrong, or that need a stricter rule
@@ -166,12 +167,12 @@ def extract_urls(text: str) -> set:
     return {normalize_url(url) for url in URL_PATTERN.findall(text or '')}
 
 
-def recipient_addresses(arguments: Dict[str, Any]) -> Optional[List[str]]:
+def recipient_values(arguments: Dict[str, Any]) -> Optional[List[str]]:
     """
-    Returns every email address in the recipient arguments of a tool call,
-    or None if the recipients can't be verified (no recipient argument, or one without an address).
+    Every recipient in a tool call, lowercased: email addresses, or channel/user names and IDs as written.
+    Returns None if the action has no recipient argument (we can't tell where it goes).
     """
-    addresses = []
+    values = []
     found_recipient_argument = False
     for key, value in arguments.items():
         if not RECIPIENT_ARGUMENT.search(key):
@@ -180,11 +181,27 @@ def recipient_addresses(arguments: Dict[str, Any]) -> Optional[List[str]]:
         for item in value if isinstance(value, list) else [value]:
             if item in (None, ''):
                 continue
-            emails = EMAIL_ADDRESS.findall(str(item))
-            if not emails:
-                return None  # e.g. a name or ID we can't map to an address: fail closed
-            addresses.extend(email.lower() for email in emails)
-    return addresses if found_recipient_argument and addresses else None
+            text = json.dumps(item) if isinstance(item, dict) else str(item)  # e.g. attendees: [{"email": ...}]
+            emails = EMAIL_ADDRESS.findall(text)
+            if emails:
+                values.extend(email.lower() for email in emails)
+            else:
+                values.append(text.strip().lower())
+    return values if found_recipient_argument and values else None
+
+
+def _history_user_texts(chat_history) -> List[str]:
+    """Text of the user's own messages in the history (plain or multi-part content)."""
+    texts = []
+    for item in chat_history or []:
+        if not isinstance(item, dict) or item.get('role') != 'user':
+            continue
+        content = item.get('content')
+        for part in content if isinstance(content, list) else [content]:
+            text = part.get('text', '') if isinstance(part, dict) else part
+            if isinstance(text, str):
+                texts.append(text)
+    return texts
 
 
 class PermissionGate:
@@ -198,19 +215,16 @@ class PermissionGate:
         self.agent_model = agent_model
         self.callback = callback  # None means nobody is watching (workflows, messaging channels)
 
-        # Links the user wrote themselves (their message and their earlier messages). Only these may be
-        # opened freely once private data is in the context. Assistant messages don't count: they can
-        # repeat links copied from emails or pages.
-        self.user_urls = extract_urls(user_message or '')
-        for item in chat_history or []:
-            if not isinstance(item, dict) or item.get('role') != 'user':
-                continue
-            content = item.get('content')
-            parts = content if isinstance(content, list) else [content]
-            for part in parts:
-                text = part.get('text', '') if isinstance(part, dict) else part
-                if isinstance(text, str):
-                    self.user_urls |= extract_urls(text)
+        # Everything the user wrote: their message, their earlier messages, and the agent's instructions
+        # (written by the owner). Assistant messages don't count: they can repeat text copied from emails
+        # or pages. Values found here (links, recipients) were chosen by the user, not by an attacker.
+        self.user_text = '\n'.join(
+            [user_message or '', getattr(agent_model, 'prompt', '') or ''] + _history_user_texts(chat_history)
+        ).lower()
+        self.user_urls = extract_urls(self.user_text)
+
+        # Third-party text seen this turn (tool, lowercased content), to say where a value came from
+        self.untrusted_texts: List[tuple] = []
 
         # Where every other link came from (url -> tool), for the approval card
         self.url_sources: Dict[str, str] = {}
@@ -238,13 +252,36 @@ class PermissionGate:
             return content
         if tool_name not in self.untrusted_sources:
             self.untrusted_sources.append(tool_name)
+        self.untrusted_texts.append((tool_name, content.lower()))
         return wrap_untrusted(tool_name, content)
 
-    def _targets_only_owner(self, arguments: Dict[str, Any]) -> bool:
-        """True only if every recipient of the action is the agent owner's own email address."""
+    def _written_by_user(self, value: str) -> bool:
+        """True if a recipient is the owner, or appears as a whole word in text the user wrote."""
         owner_email = (getattr(self.user, 'email', '') or '').lower()
-        recipients = recipient_addresses(arguments)
-        return bool(owner_email and recipients) and all(address == owner_email for address in recipients)
+        if owner_email and value == owner_email:
+            return True
+        if len(value) < 3:
+            return False  # too short to match safely ("a" is in almost any text)
+        return re.search(r'(?<![\w.@-])' + re.escape(value) + r'(?![\w.@-])', self.user_text) is not None
+
+    def _source_of(self, value: str) -> str:
+        """Where a value not written by the user came from: the first third-party source that contains it."""
+        for tool_name, text in self.untrusted_texts:
+            if value in text:
+                return tool_name
+        return 'nowhere (the agent made it up)'
+
+    def _recipients_not_from_user(self, arguments: Dict[str, Any]) -> Optional[List[Dict[str, str]]]:
+        """
+        After third-party content entered, the danger is an attacker choosing where an action goes.
+        Returns the recipients the user didn't write (with their source), [] if all are fine,
+        or None if the action has no recipient we can check.
+        """
+        recipients = recipient_values(arguments)
+        if recipients is None:
+            return None
+        return [{'value': value, 'source': self._source_of(value)}
+                for value in recipients if not self._written_by_user(value)]
 
     async def check(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
         """
@@ -265,13 +302,22 @@ class PermissionGate:
         if self.callback is None:
             if tool_name in (getattr(self.agent_model, 'unattended_write_tools', None) or []):
                 # Pre-approval was given for the owner's intent. After reading third-party content,
-                # the request may be an attacker's, so it may only target the owner.
-                if self.untrusted_sources and not self._targets_only_owner(arguments):
-                    return denial(
-                        f'{tool_name} was blocked: this run read third-party content ({", ".join(self.untrusted_sources)}), '
-                        'so pre-approved actions may only be sent to the agent owner\'s own address. '
-                        'Do not retry with other recipients. Tell the user the action needs their approval in the chat.'
-                    )
+                # the request may be an attacker's: it may only go to recipients the owner wrote.
+                if self.untrusted_sources:
+                    not_from_user = self._recipients_not_from_user(arguments)
+                    if not_from_user is None:
+                        return denial(
+                            f'{tool_name} was blocked: this run read third-party content ({", ".join(self.untrusted_sources)}), '
+                            'and this action has no recipient that can be checked. '
+                            'Do not retry. Tell the user the action needs their approval in the chat.'
+                        )
+                    if not_from_user:
+                        listed = ', '.join(f'{r["value"]} (from {r["source"]})' for r in not_from_user)
+                        return denial(
+                            f'{tool_name} was blocked: after reading third-party content, pre-approved actions may only go '
+                            f'to recipients the user wrote in their messages or the agent instructions. Not written by the user: {listed}. '
+                            'Do not retry with other recipients. Tell the user the action needs their approval in the chat.'
+                        )
                 await self._record_preapproved(tool_name, arguments)
                 return None
             return denial(
@@ -279,7 +325,16 @@ class PermissionGate:
                 'Do not retry. Tell the user to pre-approve this action for the agent, or ask for it in the chat.'
             )
 
-        return await self._ask_user(tool_name, arguments)
+        # Live chat: warn precisely. Name recipients the user didn't write; if the action has no recipient
+        # to check, fall back to the general "after reading third-party content" warning.
+        suspicious, general = [], []
+        if self.untrusted_sources:
+            not_from_user = self._recipients_not_from_user(arguments)
+            if not_from_user is None:
+                general = list(self.untrusted_sources)
+            else:
+                suspicious = not_from_user
+        return await self._ask_user(tool_name, arguments, untrusted_sources=general, suspicious_recipients=suspicious)
 
     async def _check_url_fetch(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
         """
@@ -307,6 +362,7 @@ class PermissionGate:
             )
         return await self._ask_user(
             tool_name, arguments,
+            untrusted_sources=list(self.untrusted_sources),
             reason=f'This link {origin}, not from you. Opening it lets that website see the request, '
                    'which could reveal information from your private data.'
         )
@@ -325,7 +381,9 @@ class PermissionGate:
             decided_at=timezone.now(),
         )
 
-    async def _ask_user(self, tool_name: str, arguments: Dict[str, Any], reason: str = '') -> Optional[str]:
+    async def _ask_user(self, tool_name: str, arguments: Dict[str, Any], reason: str = '',
+                        untrusted_sources: Optional[List[str]] = None,
+                        suspicious_recipients: Optional[List[Dict[str, str]]] = None) -> Optional[str]:
         """Saves a pending approval, shows it in the UI, and waits for the user's decision."""
         from ..models import ToolApproval
 
@@ -341,8 +399,10 @@ class PermissionGate:
             'tool': tool_name,
             'arguments': arguments,
             'timeout_seconds': APPROVAL_TIMEOUT_SECONDS,
-            # Shown as a warning on the card: this request came after reading third-party content
-            'untrusted_sources': list(self.untrusted_sources),
+            # Warnings on the card: recipients the user didn't write, or (when there's no recipient to
+            # check) the third-party sources read before this request
+            'suspicious_recipients': suspicious_recipients or [],
+            'untrusted_sources': untrusted_sources or [],
             'reason': reason,
         })
 

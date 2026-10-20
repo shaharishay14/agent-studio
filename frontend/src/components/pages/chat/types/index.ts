@@ -27,6 +27,7 @@ export interface ToolApprovalRequest {
   arguments: Record<string, unknown>;
   timeout_seconds: number;
   untrusted_sources: string[];
+  suspicious_recipients: { value: string; source: string }[];
   reason?: string;
 }
 

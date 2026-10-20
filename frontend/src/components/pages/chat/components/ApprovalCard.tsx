@@ -59,6 +59,23 @@ export const ApprovalCard = ({ isDarkMode, approval, isDeciding, onDecision }: A
           </div>
         )}
 
+        {/* Recipients the user never wrote - an email or page may have chosen where this goes */}
+        {approval.suspicious_recipients?.length > 0 && (
+          <div className={`text-sm mb-3 rounded-lg px-3 py-2 ${
+            isDarkMode ? 'bg-red-500/10 border border-red-500/30 text-red-300' : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            ⚠️ You didn't write {approval.suspicious_recipients.length === 1 ? 'this recipient' : 'these recipients'}:
+            <ul className="list-disc ml-5 mt-1">
+              {approval.suspicious_recipients.map(({ value, source }) => (
+                <li key={value}>
+                  <span className="font-medium break-all">{value}</span> - came from {formatToolName(source)}
+                </li>
+              ))}
+            </ul>
+            Text in emails or web pages can try to trick the agent into sending to the wrong place.
+          </div>
+        )}
+
         {/* The request came after the agent read third-party content - it may be an injected instruction */}
         {approval.untrusted_sources?.length > 0 && (
           <div className={`text-sm mb-3 rounded-lg px-3 py-2 ${
