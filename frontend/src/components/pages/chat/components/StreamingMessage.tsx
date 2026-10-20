@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MarkdownImageLink } from '../../../shared/components';
 import { isHebrewText, formatAvatarUrl } from '../utils';
 import type { Agent } from '../types';
 
@@ -64,7 +65,7 @@ export const StreamingMessage = ({ isDarkMode, content, agentData }: StreamingMe
                 : '[&>*]:text-gray-800 [&_h1]:text-gray-900 [&_h2]:text-gray-900 [&_h3]:text-gray-900 [&_strong]:text-gray-900 [&_p]:text-sm'
             }`}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: MarkdownImageLink }}>
               {content.replace(/\\n/g, '\n')}
             </ReactMarkdown>
             <span className="inline-block w-1 h-4 bg-purple-500 animate-pulse ml-0.5 align-middle"></span>

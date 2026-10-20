@@ -52,6 +52,13 @@ export const ApprovalCard = ({ isDarkMode, approval, isDeciding, onDecision }: A
           The agent wants to run <span className="font-medium">{formatToolName(approval.tool)}</span> with:
         </div>
 
+        {/* Why this needs approval, when it isn't an ordinary write (e.g. opening a new web address) */}
+        {approval.reason && (
+          <div className={`text-sm mb-3 ${isDarkMode ? 'text-amber-300' : 'text-amber-800'}`}>
+            {approval.reason}
+          </div>
+        )}
+
         {/* The request came after the agent read third-party content - it may be an injected instruction */}
         {approval.untrusted_sources?.length > 0 && (
           <div className={`text-sm mb-3 rounded-lg px-3 py-2 ${

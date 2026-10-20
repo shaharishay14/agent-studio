@@ -1661,7 +1661,7 @@ RESPONSE FORMAT:
             # ============================================================
 
             # PERMISSIONS: every tool call goes through the policy gate (read / approve / deny)
-            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback, chat_history))
+            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback, chat_history, message))
 
             composio_agent = ComposioAgent(
                 name=agent_model.name,
@@ -2116,7 +2116,7 @@ RESPONSE FORMAT:
 
             print(f"🔧 Chat with {len(agent_tools_functions)} agent tools enabled")
 
-            gate = PermissionGate(self.user, agent_model, callback, chat_history)
+            gate = PermissionGate(self.user, agent_model, callback, chat_history, message)
 
             # === AGENT LOOP ===
             # Keep calling the model WITH tools until it answers in text,

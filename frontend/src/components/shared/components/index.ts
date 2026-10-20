@@ -4,3 +4,4 @@ export { SuccessModal } from './SuccessModal';
 export { CapabilitiesList } from './CapabilitiesList';
 export type { Capability } from './CapabilitiesList';
 export { LayoutBuilder } from './LayoutBuilder';
+export { MarkdownImageLink } from './MarkdownImageLink';

@@ -27,6 +27,7 @@ export interface ToolApprovalRequest {
   arguments: Record<string, unknown>;
   timeout_seconds: number;
   untrusted_sources: string[];
+  reason?: string;
 }
 
 export type ApprovalDecision = 'approve' | 'deny';

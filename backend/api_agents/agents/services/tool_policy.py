@@ -49,6 +49,12 @@ BUILTIN_TOOL_ACCESS = {
 # Every Composio tool counts as third-party too: emails, messages and docs are written by other people.
 UNTRUSTED_OUTPUT_BUILTINS = {'web_search', 'read_website', 'search_youtube'}
 
+# Read tools whose argument is a URL the model chooses. Opening a URL is a request the server's owner sees.
+# Once the owner's private data is in the context, an attacker could have the agent open links in an order
+# that spells it out, so only links the user wrote may be opened freely.
+URL_FETCH_TOOLS = {'read_website': 'url'}
+URL_PATTERN = re.compile(r'https?://[^\s<>"\'`)\]}]+')
+
 # Argument names that hold message recipients, e.g. recipient_email, extra_recipients, to_email, cc, bcc
 RECIPIENT_ARGUMENT = re.compile(r'recipient|(^|_)(to|cc|bcc)(_|$)', re.IGNORECASE)
 EMAIL_ADDRESS = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
@@ -143,6 +149,23 @@ def wrap_untrusted(tool_name: str, content: str) -> str:
     )
 
 
+def returns_private_data(tool_name: str) -> bool:
+    """True for tools that read the owner's own accounts (every Composio tool: Gmail, Slack, Drive...)."""
+    return tool_name not in BUILTIN_TOOL_ACCESS
+
+
+def normalize_url(url: str) -> str:
+    """Comparable form of a URL: scheme added like read_website does, trailing punctuation and slash removed."""
+    url = str(url).strip().rstrip('.,;:!?/')
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    return url
+
+
+def extract_urls(text: str) -> set:
+    return {normalize_url(url) for url in URL_PATTERN.findall(text or '')}
+
+
 def recipient_addresses(arguments: Dict[str, Any]) -> Optional[List[str]]:
     """
     Returns every email address in the recipient arguments of a tool call,
@@ -170,10 +193,33 @@ class PermissionGate:
     One gate per chat turn: it knows the user, the agent and how to reach the UI.
     """
 
-    def __init__(self, user, agent_model, callback=None, chat_history=None):
+    def __init__(self, user, agent_model, callback=None, chat_history=None, user_message=None):
         self.user = user
         self.agent_model = agent_model
         self.callback = callback  # None means nobody is watching (workflows, messaging channels)
+
+        # Links the user wrote themselves (their message and their earlier messages). Only these may be
+        # opened freely once private data is in the context. Assistant messages don't count: they can
+        # repeat links copied from emails or pages.
+        self.user_urls = extract_urls(user_message or '')
+        for item in chat_history or []:
+            if not isinstance(item, dict) or item.get('role') != 'user':
+                continue
+            content = item.get('content')
+            parts = content if isinstance(content, list) else [content]
+            for part in parts:
+                text = part.get('text', '') if isinstance(part, dict) else part
+                if isinstance(text, str):
+                    self.user_urls |= extract_urls(text)
+
+        # Where every other link came from (url -> tool), for the approval card
+        self.url_sources: Dict[str, str] = {}
+
+        # Which of the owner's accounts have been read this turn
+        self.private_data_sources: List[str] = []
+        if callback is None and chat_history:
+            # Stored history can hold earlier summaries of the owner's emails or files
+            self.private_data_sources.append('chat history')
 
         # Taint tracking: which third-party sources have entered the model's context this turn.
         # Once any have, the model's requests may be steered by someone other than the user.
@@ -184,6 +230,10 @@ class PermissionGate:
 
     def record_output(self, tool_name: str, content: str) -> str:
         """Called with every tool result before the model sees it. Marks and tracks third-party content."""
+        for url in extract_urls(content):
+            self.url_sources.setdefault(url, tool_name)
+        if returns_private_data(tool_name) and tool_name not in self.private_data_sources:
+            self.private_data_sources.append(tool_name)
         if not returns_untrusted_content(tool_name):
             return content
         if tool_name not in self.untrusted_sources:
@@ -204,7 +254,7 @@ class PermissionGate:
         logger.info(f"🛡️ Policy: {tool_name} -> {access.value}")
 
         if access == ToolAccess.READ:
-            return None
+            return await self._check_url_fetch(tool_name, arguments)
 
         if access == ToolAccess.DENY:
             return denial(
@@ -231,6 +281,36 @@ class PermissionGate:
 
         return await self._ask_user(tool_name, arguments)
 
+    async def _check_url_fetch(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
+        """
+        Opening a URL is a request the server's owner sees. Once private data is in the context, an attacker's
+        text could have the agent open links (built ones, or planted ones in a chosen order) that spell it out.
+        So after a private read, only links the user wrote open freely.
+        """
+        url_argument = URL_FETCH_TOOLS.get(tool_name)
+        if not url_argument or not self.private_data_sources:
+            return None
+
+        url = normalize_url(arguments.get(url_argument, ''))
+        if url in self.user_urls:
+            return None
+
+        source = self.url_sources.get(url)
+        origin = f'came from {source}' if source else 'did not come from the user or from any tool result'
+        logger.info(f"🔗 Link not written by the user after private read: {tool_name} -> {url} ({origin})")
+
+        if self.callback is None:
+            return denial(
+                f'{tool_name} was blocked: this run read the user\'s private data '
+                f'({", ".join(self.private_data_sources)}), so only links the user wrote can be opened. '
+                f'This link {origin}. Do not retry. Tell the user which page you wanted to open.'
+            )
+        return await self._ask_user(
+            tool_name, arguments,
+            reason=f'This link {origin}, not from you. Opening it lets that website see the request, '
+                   'which could reveal information from your private data.'
+        )
+
     async def _record_preapproved(self, tool_name: str, arguments: Dict[str, Any]) -> None:
         """Logs an unattended write in the same table as live approvals, so there's one audit trail."""
         from ..models import ToolApproval
@@ -245,7 +325,7 @@ class PermissionGate:
             decided_at=timezone.now(),
         )
 
-    async def _ask_user(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
+    async def _ask_user(self, tool_name: str, arguments: Dict[str, Any], reason: str = '') -> Optional[str]:
         """Saves a pending approval, shows it in the UI, and waits for the user's decision."""
         from ..models import ToolApproval
 
@@ -263,6 +343,7 @@ class PermissionGate:
             'timeout_seconds': APPROVAL_TIMEOUT_SECONDS,
             # Shown as a warning on the card: this request came after reading third-party content
             'untrusted_sources': list(self.untrusted_sources),
+            'reason': reason,
         })
 
         # Poll the DB, not memory: the approve click may be handled by a different worker process

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MarkdownImageLink } from '../../../shared/components';
 
 interface Message {
   id: string;
@@ -68,7 +69,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
                 : 'prose-invert [&>*]:text-gray-200 [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_strong]:text-gray-100 [&_code]:text-purple-300 [&_p]:text-sm'
             }`}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: MarkdownImageLink }}>
               {message.content}
             </ReactMarkdown>
           </div>

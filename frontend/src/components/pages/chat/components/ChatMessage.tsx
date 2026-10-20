@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MarkdownImageLink } from '../../../shared/components';
 import { isHebrewText, formatAvatarUrl } from '../utils';
 import type { Message, Agent } from '../types';
 
@@ -76,7 +77,7 @@ export const ChatMessage = ({ message, isDarkMode, agentData }: ChatMessageProps
                   : '[&>*]:text-gray-800 [&_h1]:text-gray-900 [&_h2]:text-gray-900 [&_h3]:text-gray-900 [&_strong]:text-gray-900 [&_p]:text-sm'
             }`}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: MarkdownImageLink }}>
               {message.content.replace(/\\n/g, '\n')}
             </ReactMarkdown>
           </div>
