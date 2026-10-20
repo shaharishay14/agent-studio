@@ -190,6 +190,17 @@ def recipient_values(arguments: Dict[str, Any]) -> Optional[List[str]]:
     return values if found_recipient_argument and values else None
 
 
+def describe_action(tool_name: str, arguments: Dict[str, Any]) -> str:
+    """Readable summary of a tool call for the user: GMAIL_SEND_EMAIL -> 'Gmail · Send email (to dana@co.com)'."""
+    if tool_name in BUILTIN_TOOL_ACCESS:
+        label = tool_name.replace('_', ' ').capitalize()
+    else:
+        app, _, action = tool_name.partition('_')
+        label = f'{app.capitalize()} · {action.replace("_", " ").capitalize()}' if action else app.capitalize()
+    recipients = recipient_values(arguments)
+    return f'{label} (to {", ".join(recipients)})' if recipients else label
+
+
 def _history_user_texts(chat_history) -> List[str]:
     """Text of the user's own messages in the history (plain or multi-part content)."""
     texts = []
@@ -229,6 +240,9 @@ class PermissionGate:
         # Where every other link came from (url -> tool), for the approval card
         self.url_sources: Dict[str, str] = {}
 
+        # Every tool that actually ran this turn, in order, so a failure can say what was already done
+        self.completed_actions: List[Dict[str, Any]] = []
+
         # Which of the owner's accounts have been read this turn
         self.private_data_sources: List[str] = []
         if callback is None and chat_history:
@@ -241,6 +255,15 @@ class PermissionGate:
         if callback is None and chat_history:
             # Unattended runs reuse stored history, which can hold earlier summaries of emails or pages
             self.untrusted_sources.append('chat history')
+
+    def record_completed(self, tool_name: str, arguments: Dict[str, Any]) -> None:
+        """Called after a tool finished running (its effects, like a sent email, have happened)."""
+        self.completed_actions.append({'tool': tool_name, 'arguments': arguments, 'access': classify_tool(tool_name)})
+
+    def completed_writes(self) -> List[str]:
+        """Readable list of actions that changed something this turn."""
+        return [describe_action(action['tool'], action['arguments'])
+                for action in self.completed_actions if action['access'] == ToolAccess.WRITE]
 
     def record_output(self, tool_name: str, content: str) -> str:
         """Called with every tool result before the model sees it. Marks and tracks third-party content."""
@@ -460,6 +483,7 @@ def guard_function_tools(tools: List[Any], gate: PermissionGate) -> List[Any]:
                 if gate.callback:
                     await gate.callback('tool_call_start', {'tool': original_tool.name, 'parameters': arguments})
                 result = await original_tool.on_invoke_tool(ctx, input_json)
+                gate.record_completed(original_tool.name, arguments)
                 text = result if isinstance(result, str) else json.dumps(result, default=str)
                 return gate.record_output(original_tool.name, cap_tool_result(text))
             return invoke

@@ -242,6 +242,19 @@ def with_retry(
 # SECURITY HELPER FUNCTIONS
 # ============================================================
 
+def honest_failure_message(completed_writes: List[str], timed_out: bool = False) -> str:
+    """
+    What the user is told when a run fails: built from what actually ran, never from a second model
+    guessing. Says which actions already happened, so the user doesn't repeat them (e.g. a second email).
+    """
+    problem = 'This took too long' if timed_out else 'Something went wrong'
+    if completed_writes:
+        done = '\n'.join(f'- {action}' for action in completed_writes)
+        return (f'{problem} before I could finish. These actions were already done:\n{done}\n'
+                'Check them before asking me to repeat anything.')
+    return f"{problem} and I couldn't finish. Nothing was changed. Please try again."
+
+
 def sanitize_for_prompt(text: str, max_length: int = 10000) -> str:
     """
     Limits the length of text going into a prompt.
@@ -1338,6 +1351,7 @@ class AgentService:
         """
         import time
         start_time = time.time()
+        gate = None  # set once tools are wrapped; records what actually ran, for honest failure messages
 
         try:
             # ============================================================
@@ -1564,7 +1578,8 @@ List the exact steps you will take:
             # ============================================================
 
             # PERMISSIONS: every tool call goes through the policy gate (read / approve / deny)
-            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback, chat_history, message))
+            gate = PermissionGate(self.user, agent_model, callback, chat_history, message)
+            tools = guard_function_tools(tools, gate)
 
             composio_agent = ComposioAgent(
                 name=agent_model.name,
@@ -1725,11 +1740,7 @@ List the exact steps you will take:
             else:
                 # Pass the *entire chat history* (including current message with files) to the runner.
                 # Uses automatic retry with exponential backoff for transient failures
-                try:
-                    result = await self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0, callback=callback)
-                except asyncio.TimeoutError:
-                    print("⚠️ Composio execution timed out after 180 seconds")
-                    return "Task execution timed out. The operation may still be in progress."
+                result = await self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0, callback=callback)
 
             # ============================================================
             # PHASE 9: EXTRACT RESULT & POST-EXECUTION VERIFICATION
@@ -1807,9 +1818,12 @@ List the exact steps you will take:
             if execution_logger.current_log:
                 execution_logger.log_execution_error(safe_error)
 
-            if callback:
-                await callback('error', {'error': safe_error})
-            return await self._chat_without_tools(agent_model, message, chat_history, callback)
+            # Honest answer from what actually ran. No fallback to a second, tool-less model: it had no
+            # memory of the run and could claim actions that never happened. Details stay in the logs.
+            return honest_failure_message(
+                gate.completed_writes() if gate else [],
+                timed_out=isinstance(e, asyncio.TimeoutError),
+            )
 
     async def compact_chat_history(self, agent_id, older_messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """

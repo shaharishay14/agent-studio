@@ -132,3 +132,36 @@ def test_retry_wraps_the_runner_call_not_the_whole_run():
     # functools.wraps sets __wrapped__ on decorated functions
     assert hasattr(AgentService._execute_agent_with_retry, '__wrapped__')
     assert not hasattr(AgentService.run, '__wrapped__')
+
+
+# --- honest failures (fix #6 step 5) -------------------------------------------------------------------
+
+async def test_failure_after_an_email_says_what_was_already_done(runner_service, agent):
+    build, composio_calls = runner_service
+    agent.unattended_write_tools = ['GMAIL_SEND_EMAIL']               # a workflow: nobody to approve
+    service, model = build([
+        [call('1', 'GMAIL_SEND_EMAIL', {'recipient_email': 'owner@me.com', 'body': 'report'})],
+        ConnectionError('Slack step blew up'),
+    ])
+    answer = await service.run(agent, 'Email me the report, then post it to Slack')
+
+    assert composio_calls == [('GMAIL_SEND_EMAIL', {'recipient_email': 'owner@me.com', 'body': 'report'})]
+    assert 'already done' in answer and 'Gmail · Send email (to owner@me.com)' in answer
+    assert 'Slack step blew up' not in answer                          # internal details stay in the logs
+    assert service.openai_client.calls == []                           # no second, tool-less model answered
+
+
+async def test_timeout_before_anything_happened_says_nothing_changed(runner_service, agent):
+    build, _ = runner_service
+    service, model = build([TimeoutError()])
+    answer = await service.run(agent, 'summarize my inbox')
+    assert answer.startswith('This took too long') and 'Nothing was changed' in answer
+    assert service.openai_client.calls == []
+
+
+def test_failure_message_lists_only_actions_that_changed_something():
+    from api_agents.agents.services.agent_service import honest_failure_message
+    from api_agents.agents.services.tool_policy import describe_action
+    assert describe_action('GMAIL_SEND_EMAIL', {'recipient_email': 'Dana@co.com'}) == 'Gmail · Send email (to dana@co.com)'
+    assert describe_action('get_weather', {'location': 'Paris'}) == 'Get weather'
+    assert 'Nothing was changed' in honest_failure_message([])

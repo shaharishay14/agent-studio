@@ -186,3 +186,18 @@ async def test_web_only_browsing_stays_free(owner, agent):
     gate = PermissionGate(owner, agent, None, user_message='find the Django release notes')
     gate.record_output('web_search', json.dumps({'results': [{'url': 'https://docs.djangoproject.com/releases/'}]}))
     assert await gate.check('read_website', {'url': 'https://docs.djangoproject.com/releases'}) is None
+
+
+async def test_gate_records_what_ran_and_which_actions_changed_something(owner, agent):
+    async def real_tool(ctx, payload):
+        return 'ok'
+
+    agent.unattended_write_tools = ['GMAIL_SEND_EMAIL']
+    gate = PermissionGate(owner, agent, None)
+    fetch, send = guard_function_tools([make_tool('GMAIL_FETCH_EMAILS', real_tool), make_tool('GMAIL_SEND_EMAIL', real_tool)], gate)
+    await fetch.on_invoke_tool(None, '{}')
+    await send.on_invoke_tool(None, '{"recipient_email": "owner@me.com"}')
+    await send.on_invoke_tool(None, '{"recipient_email": "attacker@evil.com"}')   # blocked: never ran
+
+    assert [action['tool'] for action in gate.completed_actions] == ['GMAIL_FETCH_EMAILS', 'GMAIL_SEND_EMAIL']
+    assert gate.completed_writes() == ['Gmail · Send email (to owner@me.com)']
