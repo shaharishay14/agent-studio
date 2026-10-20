@@ -8,8 +8,6 @@ import ast
 import math
 import operator
 import requests
-import json
-import re
 from typing import Dict, Any
 from django.conf import settings
 from bs4 import BeautifulSoup

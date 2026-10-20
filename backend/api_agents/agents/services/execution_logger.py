@@ -17,8 +17,6 @@ import json
 import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
-from .intent_resolution_engine import IntentResolution
-from .pre_execution_validator import ValidationResult
 
 
 @dataclass
@@ -147,53 +145,6 @@ class ExecutionLogger:
         )
 
         return timestamp
-
-    def log_intent_resolution(self, intent: IntentResolution):
-        """Logs the intent resolution results."""
-        if not self.current_log:
-            return
-
-        self.current_log.resolved_intent = {
-            "action": intent.action,
-            "platform": intent.platform,
-            "content_reference": intent.content_reference,
-            "calculated_date": str(intent.calculated_date) if intent.calculated_date else None,
-            "reasoning": intent.reasoning,
-            "missing_requirements": intent.missing_requirements,
-            "fallback_options": intent.fallback_options
-        }
-        self.current_log.intent_confidence = intent.confidence
-
-        # Set debug flags
-        vague_verbs = ["launch", "drop", "blast", "share", "push", "throw"]
-        self.current_log.had_vague_language = any(
-            verb in self.current_log.user_message.lower()
-            for verb in vague_verbs
-        )
-        self.current_log.had_date_calculation = intent.calculated_date is not None
-        self.current_log.had_platform_inference = intent.platform is not None
-        self.current_log.had_content_resolution = intent.content_reference is not None
-
-        # Log decision
-        self._add_execution_step(f"Intent Resolution: {intent.reasoning} (Confidence: {intent.confidence}%)")
-
-    def log_validation(self, validation: ValidationResult):
-        """Logs the pre-execution validation results."""
-        if not self.current_log:
-            return
-
-        self.current_log.validation_passed = validation.passed
-        self.current_log.validation_confidence = validation.confidence
-        self.current_log.blocking_issues = validation.blocking_issues
-        self.current_log.warnings = validation.warnings
-        self.current_log.required_actions = validation.required_actions
-
-        # Log decision
-        status = "✅ PASSED" if validation.passed else "❌ BLOCKED"
-        self._add_execution_step(f"Validation: {status} - {validation.validation_summary}")
-
-        if not validation.passed:
-            self.current_log.execution_status = "blocked"
 
     def log_tool_selection(self, selected_tools: List[str], reasoning: str):
         """Logs tool selection decisions."""
