@@ -18,6 +18,7 @@ from composio import Composio
 from composio_openai_agents import OpenAIAgentsProvider
 from agents import Agent as ComposioAgent, FunctionTool, Runner
 from agents.exceptions import MaxTurnsExceeded
+from openai.types.responses import ResponseTextDeltaEvent
 from openai import AsyncOpenAI  # ✅ Changed from OpenAI to AsyncOpenAI
 from django.conf import settings
 from django.core.cache import cache
@@ -36,6 +37,11 @@ logger = logging.getLogger(__name__)
 
 # Max model calls with tools per user message before we force a final answer
 MAX_AGENT_STEPS = 8
+class RunAlreadyStartedError(Exception):
+    """A run failed after it streamed text or called a tool. Retrying would show the answer twice
+    or repeat a tool (e.g. send an email twice), so it is never retried."""
+
+
 STEP_LIMIT_INSTRUCTION = (
     "You have reached the maximum number of tool steps. "
     "Answer the user now using only the information gathered so far. "
@@ -1123,19 +1129,16 @@ class AgentService:
             allow_connected_apps: False for senders who must not use the owner's accounts (Telegram strangers)
         """
         use_connected_apps = bool(allow_connected_apps and agent_model.app_connections and self.composio_client)
-        builtin_tools = self._builtin_function_tools(agent_model)
 
-        if use_connected_apps or builtin_tools:
-            return await self._chat_with_composio(
-                agent_model=agent_model,
-                message=message,
-                chat_history=chat_history,
-                callback=callback,
-                file_attachments=file_attachments,
-                use_phase2_optimization=use_connected_apps,  # load top-10 Composio tools only when allowed
-                extra_tools=builtin_tools,
-            )
-        return await self._chat_without_tools(agent_model, message, chat_history, callback)
+        return await self._chat_with_composio(
+            agent_model=agent_model,
+            message=message,
+            chat_history=chat_history,
+            callback=callback,
+            file_attachments=file_attachments,
+            use_phase2_optimization=use_connected_apps,  # load top-10 Composio tools only when allowed
+            extra_tools=self._builtin_function_tools(agent_model),
+        )
 
     def _builtin_function_tools(self, agent_model) -> List[FunctionTool]:
         """
@@ -1165,48 +1168,59 @@ class AgentService:
             for definition in get_openai_functions_for_tools(agent_model.agent_tools or [])
         ]
 
-    @with_retry(max_retries=2, backoff_factor=2, initial_delay=1.0)
-    async def _execute_agent_with_retry(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict], timeout: float = 180.0):
+    @with_retry(max_retries=2, backoff_factor=2, initial_delay=1.0,
+                dont_retry_on=(asyncio.TimeoutError, KeyboardInterrupt, RunAlreadyStartedError))
+    async def _execute_agent_with_retry(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict],
+                                        timeout: float = 180.0, callback=None):
         """
-        Execute Composio agent with automatic retry on transient failures.
-        Uses exponential backoff: 1s, 2s delays between retries.
-
-        Args:
-            runner: Composio Runner instance
-            agent: ComposioAgent instance to execute
-            chat_history: Chat history to pass to agent
-            timeout: Maximum execution time in seconds (default: 180s)
-
-        Returns:
-            Agent execution result
-
-        Raises:
-            asyncio.TimeoutError: If execution exceeds timeout (not retried)
-            Exception: On final retry failure
+        Runs the agent with a time limit. Retries only failures that happened before anything was
+        streamed or any tool was called (see RunAlreadyStartedError).
         """
         return await asyncio.wait_for(
-            self._run_with_step_limit(runner, agent, chat_history),
+            self._run_with_step_limit(runner, agent, chat_history, callback),
             timeout=timeout
         )
 
-    async def _run_with_step_limit(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict]):
+    async def _run_with_step_limit(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict], callback=None):
         """
         Runs the agent loop for at most MAX_AGENT_STEPS model calls. At the limit, the model gets one
         more call without tools, with everything it did so far, and must answer with what it has.
         Without this, the SDK's MaxTurnsExceeded fell through to a no-tools chat with no memory
         of the steps taken, which could claim actions that never happened.
         """
+        progress = {'started': False, 'index': 0}
         try:
-            return await runner.run(agent, chat_history, max_turns=MAX_AGENT_STEPS)
-        except MaxTurnsExceeded as e:
-            if e.run_data is None:
-                raise
-            logger.warning(f"⚠️ Agent hit step limit ({MAX_AGENT_STEPS}), forcing final answer")
-            run_input = e.run_data.input
-            history = list(run_input) if isinstance(run_input, list) else [{'role': 'user', 'content': run_input}]
-            history += [item.to_input_item() for item in e.run_data.new_items]
-            history.append({'role': 'system', 'content': STEP_LIMIT_INSTRUCTION})
-            return await runner.run(agent.clone(tools=[]), history, max_turns=1)
+            try:
+                return await self._stream_run(runner, agent, chat_history, MAX_AGENT_STEPS, callback, progress)
+            except MaxTurnsExceeded as e:
+                if e.run_data is None:
+                    raise
+                logger.warning(f"⚠️ Agent hit step limit ({MAX_AGENT_STEPS}), forcing final answer")
+                run_input = e.run_data.input
+                history = list(run_input) if isinstance(run_input, list) else [{'role': 'user', 'content': run_input}]
+                history += [item.to_input_item() for item in e.run_data.new_items]
+                history.append({'role': 'system', 'content': STEP_LIMIT_INSTRUCTION})
+                return await self._stream_run(runner, agent.clone(tools=[]), history, 1, callback, progress)
+        except Exception as e:
+            if progress['started'] and not isinstance(e, RunAlreadyStartedError):
+                raise RunAlreadyStartedError(f'{type(e).__name__}: {e}') from e
+            raise
+
+    async def _stream_run(self, runner: Runner, agent: ComposioAgent, run_input, max_turns: int, callback, progress):
+        """
+        One streamed Runner run. Text is sent to the UI as it is written (content_delta, the same event
+        the UI already renders word by word). Marks progress as started once text or a tool call appears.
+        """
+        result = runner.run_streamed(agent, run_input, max_turns=max_turns)
+        async for event in result.stream_events():
+            if event.type == 'raw_response_event' and isinstance(event.data, ResponseTextDeltaEvent):
+                progress['started'] = True
+                if callback and event.data.delta:
+                    await callback('content_delta', {'content': event.data.delta, 'index': progress['index']})
+                    progress['index'] += 1
+            elif event.type == 'run_item_stream_event' and event.name == 'tool_called':
+                progress['started'] = True
+        return result
 
     async def _chat_without_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None) -> str:
         """
@@ -1423,20 +1437,11 @@ class AgentService:
             if extra_tools:
                 tools = list(tools) + list(extra_tools)
 
-            if not tools:
-                if use_phase2_optimization:
-                    error_msg = f"Failed to load Composio tools for connected apps: {agent_model.app_connections}"
-                else:
-                    error_msg = f"Failed to load Composio tools: {specific_tools_slugs}"
-                print(f"❌ {error_msg}")
-                print(f"  - This could be due to:")
-                print(f"    1. Connection expired/invalid for user {self.user.username}")
-                print(f"    2. Tools not enabled for this entity")
-                print(f"    3. Invalid tool slugs")
+            if use_phase2_optimization and not tools:
+                error_msg = f"Failed to load Composio tools for connected apps: {agent_model.app_connections}"
+                print(f"❌ {error_msg} (expired connection, or tools not enabled for this entity)")
                 execution_logger.log_execution_error(error_msg)
-
-                # For regular execution, fall back to chat without tools
-                return await self._chat_without_tools(agent_model, message, chat_history, callback)
+            # No tools at all (plain chat agent, or a failed load) is fine: the same Runner just answers
 
             # Log the tools offered (the model picks among them via function calling)
             all_tool_names = [tool.name if hasattr(tool, 'name') else str(tool)[:30] for tool in tools]
@@ -1701,7 +1706,7 @@ List the exact steps you will take:
                 async def run_with_heartbeats():
                     # Create a task for the runner with timeout and automatic retry
                     runner_task = asyncio.create_task(
-                        self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0)
+                        self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0, callback=callback)
                     )
 
                     # Periodically send heartbeats while runner is working
@@ -1721,7 +1726,7 @@ List the exact steps you will take:
                 # Pass the *entire chat history* (including current message with files) to the runner.
                 # Uses automatic retry with exponential backoff for transient failures
                 try:
-                    result = await self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0)
+                    result = await self._execute_agent_with_retry(runner, composio_agent, full_chat_history, timeout=180.0, callback=callback)
                 except asyncio.TimeoutError:
                     print("⚠️ Composio execution timed out after 180 seconds")
                     return "Task execution timed out. The operation may still be in progress."

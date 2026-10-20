@@ -19,14 +19,18 @@ def ok(data):
     return {'success': True, 'data': data}
 
 
-async def test_multi_step_task_runs_tools_until_the_model_answers(make_service, agent, scripted_model):
+async def test_multi_step_task_runs_tools_until_the_model_answers(make_service, agent, scripted_model, events):
     service = make_service(tool_fn=lambda name, **args: ok({'tool': name, **args}))
     model = scripted_model([
         [call('1', 'get_weather', {'location': 'Paris'})],
         [call('2', 'calculate', {'expression': '18 * 9 / 5 + 32'})],
         [say('It is 64.4F in Paris')],
     ])
-    assert await service.run(agent, 'Paris weather in Fahrenheit?') == 'It is 64.4F in Paris'
+    assert await service.run(agent, 'Paris weather in Fahrenheit?', callback=events) == 'It is 64.4F in Paris'
+    # the answer was streamed to the UI in pieces, in order
+    deltas = [data for event, data in events.recorded if event == 'content_delta']
+    assert len(deltas) > 1 and ''.join(d['content'] for d in deltas) == 'It is 64.4F in Paris'
+    assert [d['index'] for d in deltas] == list(range(len(deltas)))
     assert model.tool_names[0] == ['calculate', 'get_weather']            # built-in only: no Composio tools
     assert 'Paris' in model.tool_outputs(1)['call_1']                      # step 2 saw step 1's result
     assert '18 * 9' in model.tool_outputs(2)['call_2']
@@ -72,6 +76,40 @@ async def test_big_tool_result_is_capped_and_marked(make_service, agent, scripte
     content = model.tool_outputs(1)['call_1']
     assert 'TRUNCATED' in content and len(content) < agent_service.MAX_TOOL_RESULT_CHARS + 600
     assert content.startswith('<untrusted_tool_output tool="web_search">')
+
+
+async def test_plain_chat_agent_streams_through_the_same_runner(make_service, agent, scripted_model, events):
+    agent.agent_tools = []
+    service = make_service()
+    model = scripted_model([[say('Hello! How can I help?')]])
+    assert await service.run(agent, 'hi', callback=events) == 'Hello! How can I help?'
+    assert model.tool_names == [[]]
+    assert ''.join(d['content'] for e, d in events.recorded if e == 'content_delta') == 'Hello! How can I help?'
+
+
+async def test_failure_before_anything_happened_is_retried(make_service, agent, scripted_model):
+    service = make_service(tool_fn=lambda name, **args: ok(1))
+    model = scripted_model([ConnectionError('blip'), [say('ok after retry')]])
+    assert await service.run(agent, 'hi') == 'ok after retry'
+    assert len(model.inputs) == 2
+
+
+async def test_failure_after_a_tool_ran_is_not_retried(make_service, agent, scripted_model):
+    ran = []
+    service = make_service(tool_fn=lambda name, **args: ran.append(name) or ok(1))
+    model = scripted_model([[call('1', 'get_weather', {'location': 'Paris'})], ConnectionError('blip'),
+                            [call('2', 'get_weather', {'location': 'Paris'})], [say('ran twice')]])
+    with pytest.raises(agent_service.RunAlreadyStartedError):
+        await service._run_with_step_limit(agent_service.Runner(), _sdk_agent(service, agent), [{'role': 'user', 'content': 'hi'}])
+    assert ran == ['get_weather']                                       # the tool ran once, not again
+
+
+def _sdk_agent(service, agent):
+    """The SDK agent the Runner path builds, with the model taken from the scripted model fixture."""
+    from api_agents.agents.services.tool_policy import PermissionGate, guard_function_tools
+    model = agent_service.get_model_selection_strategy().select_model()
+    tools = guard_function_tools(service._builtin_function_tools(agent), PermissionGate(service.user, agent))
+    return agent_service.ComposioAgent(name='t', instructions='', tools=tools, model=model)
 
 
 # --- compaction (fix #2) ------------------------------------------------------------------------

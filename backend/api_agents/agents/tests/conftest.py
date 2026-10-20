@@ -14,7 +14,8 @@ from agents import set_tracing_disabled
 from agents.items import ModelResponse
 from agents.models.interface import Model
 from agents.usage import Usage
-from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
+from openai.types.responses import (Response, ResponseCompletedEvent, ResponseFunctionToolCall, ResponseOutputMessage,
+                                    ResponseOutputText, ResponseTextDeltaEvent)
 
 from api_agents.models import Agent, User
 from api_agents.agents.services import tool_policy
@@ -51,7 +52,8 @@ def tool_call(call_id, name, arguments):
 
 class ScriptedModel(Model):
     """Stands in for the LLM inside the real Agents SDK Runner: plays back one list of output items
-    per turn, and records the input and tool names the Runner sent each time."""
+    per turn (or raises, if the turn is an exception), and records the input and tool names the
+    Runner sent each time. Streams text in small pieces, like a real model."""
 
     def __init__(self, turns):
         self.turns = list(turns)
@@ -62,10 +64,28 @@ class ScriptedModel(Model):
                            tracing, **kwargs):
         self.inputs.append(input)
         self.tool_names.append(sorted(tool.name for tool in tools))
-        return ModelResponse(output=self.turns.pop(0), usage=Usage(), response_id=None)
+        turn = self.turns.pop(0)
+        if isinstance(turn, Exception):
+            raise turn
+        return ModelResponse(output=turn, usage=Usage(), response_id=None)
 
-    def stream_response(self, *args, **kwargs):
-        raise NotImplementedError
+    async def stream_response(self, system_instructions, input, model_settings, tools, output_schema, handoffs,
+                              tracing, **kwargs):
+        response = await self.get_response(system_instructions, input, model_settings, tools, output_schema,
+                                           handoffs, tracing)
+        sequence = 0
+        for item in response.output:
+            if isinstance(item, ResponseOutputMessage):
+                text = item.content[0].text
+                for start in range(0, len(text), 4):
+                    yield ResponseTextDeltaEvent(content_index=0, delta=text[start:start + 4], item_id=item.id,
+                                                 logprobs=[], output_index=0, sequence_number=sequence,
+                                                 type='response.output_text.delta')
+                    sequence += 1
+        yield ResponseCompletedEvent(
+            response=Response(id='resp', created_at=0, model='scripted', object='response', output=response.output,
+                              parallel_tool_calls=False, tool_choice='auto', tools=[]),
+            sequence_number=sequence, type='response.completed')
 
     def tool_outputs(self, turn):
         """Tool results the Runner sent to the model at the start of a turn, by call id."""

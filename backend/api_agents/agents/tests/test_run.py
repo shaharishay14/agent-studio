@@ -93,27 +93,23 @@ async def test_destructive_tool_is_denied_inside_the_runner(runner_service, agen
 
 # --- one rule for every caller -------------------------------------------------------------------------
 
-@pytest.mark.parametrize('apps, has_client, allow, builtins, expected', [
-    (['GMAIL'], True, True, ['weather'], 'composio'),       # connected apps + built-ins: one Runner
-    (['GMAIL'], True, False, ['weather'], 'builtin_only'),  # Telegram stranger: no owner apps
-    (['GMAIL'], False, True, ['weather'], 'builtin_only'),  # Composio not configured
-    ([], True, True, ['weather'], 'builtin_only'),
-    (['GMAIL'], True, False, [], 'no_tools'),               # stranger, no built-in tools
-    ([], True, True, [], 'no_tools'),
+@pytest.mark.parametrize('apps, has_client, allow, builtins, uses_apps', [
+    (['GMAIL'], True, True, ['weather'], True),      # connected apps + built-ins: one Runner
+    (['GMAIL'], True, False, ['weather'], False),    # Telegram stranger: no owner apps
+    (['GMAIL'], False, True, ['weather'], False),    # Composio not configured
+    ([], True, True, ['weather'], False),            # built-in tools only
+    ([], True, True, [], False),                     # plain chat: same Runner, no tools
 ])
-async def test_run_routes_every_caller_the_same_way(make_service, agent, apps, has_client, allow, builtins, expected):
+async def test_run_sends_every_agent_to_the_same_runner(make_service, agent, apps, has_client, allow, builtins, uses_apps):
     agent.app_connections, agent.agent_tools = apps, builtins
     service = make_service()
     service.composio_client = object() if has_client else None
     service._chat_with_composio = AsyncMock(return_value='runner')
-    service._chat_without_tools = AsyncMock(return_value='no_tools')
 
-    result = await service.run(agent, 'hi', allow_connected_apps=allow)
-    assert result == ('no_tools' if expected == 'no_tools' else 'runner')
-    if expected != 'no_tools':
-        kwargs = service._chat_with_composio.call_args.kwargs
-        assert kwargs['use_phase2_optimization'] is (expected == 'composio')   # Composio tools only when allowed
-        assert [tool.name for tool in kwargs['extra_tools']] == ['get_weather']
+    assert await service.run(agent, 'hi', allow_connected_apps=allow) == 'runner'
+    kwargs = service._chat_with_composio.call_args.kwargs
+    assert kwargs['use_phase2_optimization'] is uses_apps           # Composio tools only when allowed
+    assert [tool.name for tool in kwargs['extra_tools']] == (['get_weather'] if builtins else [])
 
 
 # --- regressions --------------------------------------------------------------------------------------
