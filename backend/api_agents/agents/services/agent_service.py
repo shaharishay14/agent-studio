@@ -16,7 +16,7 @@ from typing import List, Dict, Any, Optional, Callable, TypeVar
 from pathlib import Path
 from composio import Composio
 from composio_openai_agents import OpenAIAgentsProvider
-from agents import Agent as ComposioAgent, Runner
+from agents import Agent as ComposioAgent, FunctionTool, Runner
 from openai import AsyncOpenAI  # ✅ Changed from OpenAI to AsyncOpenAI
 from django.conf import settings
 from django.core.cache import cache
@@ -1223,6 +1223,66 @@ class AgentService:
         )
 
     @with_retry(max_retries=2, backoff_factor=2, initial_delay=1.0)
+    async def run(self, agent_model, message: str, chat_history: List[Dict[str, Any]] = None, callback=None,
+                  file_attachments: List[Dict] = None, allow_connected_apps: bool = True) -> str:
+        """
+        The single entry point for running an agent on a message (web chat, Telegram, workflows).
+
+        One rule for every caller: connected-app tools (top 10 per app) and the agent's built-in tools
+        go into one Runner together, and every tool call goes through the permission gate.
+
+        Args:
+            agent_model: Agent model instance
+            message: User message
+            chat_history: Previous messages (already compacted by the caller, if needed)
+            callback: Async callback for streaming events; None when nobody is watching (workflows, Telegram)
+            file_attachments: Optional list of file attachment dictionaries
+            allow_connected_apps: False for senders who must not use the owner's accounts (Telegram strangers)
+        """
+        use_connected_apps = bool(allow_connected_apps and agent_model.app_connections and self.composio_client)
+
+        if use_connected_apps:
+            return await self._chat_with_composio(
+                agent_model=agent_model,
+                message=message,
+                chat_history=chat_history,
+                callback=callback,
+                file_attachments=file_attachments,
+                use_phase2_optimization=True,
+                extra_tools=self._builtin_function_tools(agent_model),
+            )
+        if agent_model.agent_tools:
+            return await self._chat_with_agent_tools(agent_model, message, chat_history, callback, file_attachments)
+        return await self._chat_without_tools(agent_model, message, chat_history, callback)
+
+    def _builtin_function_tools(self, agent_model) -> List[FunctionTool]:
+        """
+        The agent's built-in tools (weather, calculator...) as Agents SDK tools, so they run in the
+        same Runner as Composio tools. guard_function_tools adds the permission check, cap and marking.
+        """
+        def make_invoke(function_name):
+            async def invoke(ctx, payload: str) -> str:
+                arguments = parse_json_safely(payload, default={})
+                try:
+                    result = await sync_to_async(self.agent_tools_service.execute_tool)(function_name, **arguments)
+                except Exception as e:
+                    result = {'success': False, 'error': mask_sensitive_data(str(e))}
+                if result.get('success'):
+                    return json.dumps(result['data'])
+                return json.dumps({'error': result.get('error', 'Unknown error')})
+            return invoke
+
+        return [
+            FunctionTool(
+                name=definition['function']['name'],
+                description=definition['function']['description'],
+                params_json_schema=definition['function']['parameters'],
+                on_invoke_tool=make_invoke(definition['function']['name']),
+                strict_json_schema=False,  # the schemas use defaults and optional fields
+            )
+            for definition in get_openai_functions_for_tools(agent_model.agent_tools or [])
+        ]
+
     async def _execute_agent_with_retry(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict], timeout: float = 180.0):
         """
         Execute Composio agent with automatic retry on transient failures.
@@ -1336,7 +1396,7 @@ class AgentService:
             return f"Error: {safe_error}"
 
     @retry_with_backoff(max_retries=2, initial_delay=1.0, max_delay=5.0, ttl_seconds=45)
-    async def _chat_with_composio(self, agent_model, message: str, specific_tools_slugs: List[str] = None, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, skip_intent_validation: bool = False, use_phase2_optimization: bool = False) -> str:
+    async def _chat_with_composio(self, agent_model, message: str, specific_tools_slugs: List[str] = None, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, skip_intent_validation: bool = False, use_phase2_optimization: bool = False, extra_tools: List[Any] = None) -> str:
         """
         Runs the full agent execution with a specific set of tools and chat history.
 
@@ -1501,6 +1561,10 @@ class AgentService:
                 except Exception as e:
                     print(f"❌ ERROR loading tools: {type(e).__name__}: {str(e)}")
                     tools = []
+
+            # Built-in tools (weather, calculator...) run in the same Runner, behind the same gate
+            if extra_tools:
+                tools = list(tools) + list(extra_tools)
 
             if not tools:
                 if use_phase2_optimization:
@@ -2015,7 +2079,7 @@ RESPONSE FORMAT:
         for index, word in enumerate(re.findall(r'\S+\s*', content)):
             await callback('content_delta', {'content': word, 'index': index})
 
-    async def _chat_with_agent_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, is_data_fetch_only: bool = False) -> str:
+    async def _chat_with_agent_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None) -> str:
         """
         Runs chat with agent-specific tools (weather, calculator, etc.).
         Uses OpenAI function calling to execute tools.
@@ -2026,7 +2090,6 @@ RESPONSE FORMAT:
             chat_history: Previous chat messages
             callback: Optional async callback function for streaming updates
             file_attachments: Optional list of file attachment dictionaries
-            is_data_fetch_only: If True, agent should only fetch data without outputting it to user
         """
         if not self.openai_client:
             return "OpenAI client not configured"
@@ -2056,27 +2119,6 @@ RESPONSE FORMAT:
 
             # Build enhanced prompt with context
             enhanced_prompt = agent_model.prompt + "\n" + injected_context
-
-            # Add special instructions for data-fetch-only mode
-            if is_data_fetch_only:
-                enhanced_prompt += "\n\n" + """
-CRITICAL: DATA FETCH MODE FOR MULTI-TASK OPERATION
-====================================================
-You are in a data-fetching phase for a multi-task operation.
-The user has requested multiple actions that will be performed sequentially.
-
-IMPORTANT INSTRUCTIONS:
-1. FETCH AND RETURN the complete requested data/analysis using your tools
-2. Provide the FULL analysis/data that will be used in subsequent tasks
-3. DO NOT say "I will now send email" or "I will create a document"
-4. DO NOT perform any actions (sending, posting, creating files)
-5. Your response should contain the complete data/analysis
-
-RESPONSE FORMAT:
-- Return the complete analysis/data requested
-- The data will be used automatically for email/document tasks
-- Focus only on data fetching, not on actions
-"""
 
             # === ADD FILE CONTEXT TO MESSAGE ===
             # If files are attached, add file information to the message
@@ -2201,481 +2243,6 @@ RESPONSE FORMAT:
             if callback:
                 await callback('error', {'error': safe_error})
             return f"Sorry, I encountered an error: {safe_error}"
-
-    async def _chat_with_mixed_tools(self, agent_model, message: str, composio_tool_slugs: List[str], chat_history: List[Dict[str, str]] = None, callback=None) -> str:
-        """
-        Runs chat with BOTH Composio tools AND agent tools.
-        This is the most complex scenario where the agent has both types of tools enabled.
-
-        Strategy:
-        1. If Composio tools are selected, use Composio (handles connected apps)
-        2. If no Composio tools selected BUT agent tools are available, use agent tools
-        3. If neither, fallback to basic chat
-        4. Clean markdown formatting from all responses
-
-        This prioritization ensures agent tools (like yahoo_finance, weather, calculator)
-        are used when Composio doesn't have relevant tools.
-
-        Args:
-            agent_model: Agent model instance
-            message: User message
-            composio_tool_slugs: List of Composio tool slugs to use
-            chat_history: Previous chat messages
-            callback: Optional async callback function for streaming updates
-        """
-        # Smart routing: prioritize based on what tools are available
-        has_composio_tools = composio_tool_slugs and len(composio_tool_slugs) > 0
-        has_agent_tools = agent_model.agent_tools and len(agent_model.agent_tools) > 0
-
-        print(f"🔀 Mixed tools routing: Composio={has_composio_tools}, Agent={has_agent_tools}")
-
-        response = None
-        used_hybrid_mode = False  # Track if we used hybrid mode (which already cleans markdown)
-
-        if has_composio_tools and has_agent_tools:
-            # Both available - smart routing based on message content
-            # Check if message requires agent tools (stock/weather/calc/etc)
-            message_lower = message.lower()
-
-            # Stock/financial queries should use yahoo_finance agent tool
-            stock_keywords = ['stock', 'ticker', 'market', 'share price', 'aapl', 'tsla', 'financial']
-            needs_yahoo_finance = (
-                any(keyword in message_lower for keyword in stock_keywords) and
-                'yahoo_finance' in agent_model.agent_tools
-            )
-
-            # Weather queries should use weather agent tool
-            weather_keywords = ['weather', 'temperature', 'forecast', 'climate']
-            needs_weather = (
-                any(keyword in message_lower for keyword in weather_keywords) and
-                'weather' in agent_model.agent_tools
-            )
-
-            # Calculator queries should use calculator agent tool
-            calc_keywords = ['calculate', 'compute', 'math', 'equation', 'formula']
-            needs_calculator = (
-                any(keyword in message_lower for keyword in calc_keywords) and
-                'calculator' in agent_model.agent_tools
-            )
-
-            # If message needs specialized agent tools, check if it also needs Composio actions
-            if needs_yahoo_finance or needs_weather or needs_calculator:
-                # Check if message ALSO needs Composio actions (email, post, etc.)
-                action_keywords = ['send', 'email', 'post', 'tweet', 'share', 'upload', 'create']
-                needs_composio_action = any(keyword in message_lower for keyword in action_keywords)
-
-                if needs_composio_action and composio_tool_slugs:
-                    # HYBRID MODE: Need both agent tools (for data) AND Composio (for actions)
-                    print(f"  → Using HYBRID mode: agent tools for data + Composio for actions")
-                    print(f"     - Agent tools: yahoo_finance={needs_yahoo_finance}, weather={needs_weather}, calc={needs_calculator}")
-                    print(f"     - Composio actions: {composio_tool_slugs}")
-
-                    # Execute agent tools first to get data, then pass to Composio with enriched context
-                    # Note: _chat_with_hybrid_tools already includes markdown cleanup
-                    response = await self._chat_with_hybrid_tools(
-                        agent_model, message, composio_tool_slugs, chat_history, callback
-                    )
-                    used_hybrid_mode = True
-                else:
-                    # Only need agent tools (data query without action)
-                    print(f"  → Using agent tools only (specialized tools needed: yahoo_finance={needs_yahoo_finance}, weather={needs_weather}, calc={needs_calculator})")
-                    response = await self._chat_with_agent_tools(agent_model, message, chat_history, callback)
-            else:
-                # Default: prefer Composio for connected apps
-                print("  → Using Composio tools (connected apps take precedence)")
-                response = await self._chat_with_composio(agent_model, message, composio_tool_slugs, chat_history, callback)
-        elif has_composio_tools:
-            # Only Composio
-            print("  → Using Composio tools only")
-            response = await self._chat_with_composio(agent_model, message, composio_tool_slugs, chat_history, callback)
-        elif has_agent_tools:
-            # Only agent tools (THIS FIXES THE STOCK PRICE ISSUE)
-            print("  → Using agent tools only (no relevant Composio tools)")
-            response = await self._chat_with_agent_tools(agent_model, message, chat_history, callback)
-        else:
-            # No tools at all
-            print("  → No tools available, using basic chat")
-            response = await self._chat_without_tools(agent_model, message, chat_history, callback)
-
-        # Clean markdown formatting from response (unless hybrid mode already did it)
-        if response and not used_hybrid_mode:
-            response = self._clean_markdown_formatting(response)
-
-        return response
-
-    async def _chat_with_hybrid_tools(self, agent_model, message: str, composio_tool_slugs: List[str], chat_history: List[Dict[str, str]] = None, callback=None) -> str:
-        """
-        HYBRID MODE: Uses BOTH agent tools (for data fetching) AND Composio tools (for actions).
-
-        Workflow:
-        1. Execute with agent tools first to fetch data (yahoo_finance, weather, etc.)
-        2. Capture the data from agent tool execution
-        3. Parse message to identify multiple tasks (email, twitter, drive, etc.)
-        4. Execute each task sequentially with the fetched data
-        5. Clean markdown formatting from response
-
-        Example: "send me AAPL stock analysis to email, post on twitter, and save to drive"
-        - Step 1: Use yahoo_finance agent tool → get real stock data
-        - Step 2: Detect 3 tasks: email, twitter, drive
-        - Step 3: Execute each task with the fetched data
-        - Step 4: Clean markdown formatting
-
-        Args:
-            agent_model: Agent model instance
-            message: User message
-            composio_tool_slugs: List of Composio tool slugs (for actions)
-            chat_history: Previous chat messages
-            callback: Optional async callback function
-        """
-        print("🔀 HYBRID EXECUTION: Agent tools → Composio tools")
-
-        # Step 1: Parse message to identify multiple tasks
-        tasks = self._parse_multi_task_request(message, composio_tool_slugs)
-        is_multi_task = len(tasks) > 1
-
-        # Step 2: Execute with agent tools to get data
-        print("  Step 2: Fetching data with agent tools...")
-
-        # Modify message to make it clear we want complete data fetching
-        data_fetch_message = (
-            f"{message}\n\n"
-            "IMPORTANT: Fetch and return the COMPLETE requested data/analysis. "
-            "Provide the full analysis that will be needed for the email and document. "
-            "Do NOT send emails or create documents yet - just fetch and return all the data."
-        )
-
-        # For multi-task execution, suppress callback during data fetch
-        # to prevent streaming the full analysis to the user
-        data_fetch_callback = None if is_multi_task else callback
-
-        agent_tools_response = await self._chat_with_agent_tools(
-            agent_model,
-            data_fetch_message,
-            chat_history,
-            data_fetch_callback,  # Suppress for multi-task to avoid showing analysis
-            file_attachments=None,
-            is_data_fetch_only=True  # Tell agent to fetch data without outputting full analysis
-        )
-
-        print(f"  ✅ Agent tools response ({len(agent_tools_response)} chars)")
-
-        # Step 3: Execute tasks
-        if is_multi_task:
-            # Multiple tasks detected - use task queue execution
-            print(f"  Step 3: Multi-task mode - {len(tasks)} tasks detected")
-            final_response = await self._execute_task_queue(
-                agent_model,
-                message,
-                tasks,
-                agent_tools_response,
-                chat_history,
-                callback
-            )
-        else:
-            # Single task - use standard hybrid execution
-            print("  Step 3: Single task mode")
-
-            # Inject agent tools response into context for Composio execution
-            enriched_history = chat_history.copy() if chat_history else []
-            enriched_history.append({
-                "role": "user",
-                "content": message
-            })
-            # Clean markdown from agent tools response before adding to history
-            cleaned_response = self._clean_markdown_formatting(agent_tools_response)
-            enriched_history.append({
-                "role": "assistant",
-                "content": cleaned_response
-            })
-
-            # Execute with Composio tools (with enriched context)
-            print("  Step 4: Executing action with Composio tools (with fetched data)...")
-            composio_response = await self._chat_with_composio(
-                agent_model,
-                f"Based on the data above, {message}",
-                composio_tool_slugs,
-                enriched_history,
-                callback
-            )
-
-            print(f"  ✅ Composio action completed")
-            final_response = f"{agent_tools_response}\n\n{composio_response}"
-
-        # Step 4: Clean markdown formatting from response
-        final_response = self._clean_markdown_formatting(final_response)
-
-        return final_response
-
-    def _parse_multi_task_request(self, message: str, composio_tool_slugs: List[str]) -> List[Dict[str, Any]]:
-        """
-        Parse a message to identify multiple tasks/actions.
-
-        Returns a list of tasks, each with:
-        - action: The action type (send_email, post_twitter, save_drive, etc.)
-        - platform: The target platform
-        - tool_slugs: The specific Composio tool slugs for this task
-
-        Example: "send stock analysis to email, post on twitter, and save to google drive"
-        Returns: [
-            {action: 'send_email', platform: 'gmail', tool_slugs: ['GMAIL_SEND_EMAIL']},
-            {action: 'post_twitter', platform: 'twitter', tool_slugs: ['TWITTER_CREATION_OF_A_POST']},
-            {action: 'save_drive', platform: 'googledrive', tool_slugs: ['GOOGLEDOCS_CREATE_DOCUMENT']}
-        ]
-        """
-        message_lower = message.lower()
-        tasks = []
-
-        # Define action patterns with their keywords and corresponding tool slugs
-        action_patterns = [
-            {
-                'action': 'send_email',
-                'platform': 'gmail',
-                'keywords': ['send', 'email', 'mail', 'e-mail'],
-                'tool_prefixes': ['GMAIL_SEND', 'GMAIL_CREATE']
-            },
-            {
-                'action': 'post_twitter',
-                'platform': 'twitter',
-                'keywords': ['post', 'tweet', 'twitter', 'x.com'],
-                'tool_prefixes': ['TWITTER_CREATION', 'TWITTER_POST', 'TWITTER_UPLOAD']
-            },
-            {
-                'action': 'save_drive',
-                'platform': 'googledrive',
-                'keywords': ['save', 'drive', 'google drive', 'docs', 'document', 'gdrive'],
-                'tool_prefixes': ['GOOGLEDOCS_CREATE', 'GOOGLEDRIVE_CREATE', 'GOOGLEDRIVE_UPLOAD']
-            },
-            {
-                'action': 'post_slack',
-                'platform': 'slack',
-                'keywords': ['slack', 'slack message', 'slack channel'],
-                'tool_prefixes': ['SLACK_CHAT_POST', 'SLACK_SEND']
-            },
-            {
-                'action': 'create_calendar_event',
-                'platform': 'googlecalendar',
-                'keywords': ['schedule', 'calendar', 'event', 'meeting'],
-                'tool_prefixes': ['GOOGLECALENDAR_CREATE', 'GOOGLECALENDAR_INSERT']
-            },
-            {
-                'action': 'create_notion',
-                'platform': 'notion',
-                'keywords': ['notion', 'notion page', 'notion database'],
-                'tool_prefixes': ['NOTION_CREATE', 'NOTION_ADD']
-            },
-            {
-                'action': 'send_whatsapp',
-                'platform': 'whatsapp',
-                'keywords': ['whatsapp', 'whats app', 'wa'],
-                'tool_prefixes': ['WHATSAPP_SEND']
-            },
-            {
-                'action': 'send_telegram',
-                'platform': 'telegram',
-                'keywords': ['telegram', 'tg'],
-                'tool_prefixes': ['TELEGRAM_SEND']
-            }
-        ]
-
-        # Check each action pattern
-        for pattern in action_patterns:
-            # Check if any keyword is in the message
-            if any(keyword in message_lower for keyword in pattern['keywords']):
-                # Find matching tool slugs from the available Composio tools
-                matching_tools = [
-                    slug for slug in composio_tool_slugs
-                    if any(slug.startswith(prefix) for prefix in pattern['tool_prefixes'])
-                ]
-
-                # Special handling for email: prefer non-attachment version for text content
-                if pattern['action'] == 'send_email' and matching_tools:
-                    # Check if message indicates actual file attachments
-                    has_file_keywords = any(word in message_lower for word in
-                                          ['attach', 'attachment', 'file', 'document', 'pdf', 'csv', 'xlsx'])
-
-                    # If no file keywords and both email tools present, use non-attachment version
-                    if not has_file_keywords:
-                        # Filter out attachment version if regular version exists
-                        if 'GMAIL_SEND_EMAIL' in matching_tools and 'GMAIL_SEND_EMAIL_WITH_ATTACHMENT' in matching_tools:
-                            matching_tools = ['GMAIL_SEND_EMAIL']
-                            print(f"  📧 No attachments detected - using GMAIL_SEND_EMAIL (text only)")
-
-                if matching_tools:
-                    tasks.append({
-                        'action': pattern['action'],
-                        'platform': pattern['platform'],
-                        'tool_slugs': matching_tools
-                    })
-                    print(f"  📋 Detected task: {pattern['action']} ({pattern['platform']}) - Tools: {matching_tools}")
-
-        return tasks
-
-    async def _execute_task_queue(
-        self,
-        agent_model,
-        message: str,
-        tasks: List[Dict[str, Any]],
-        fetched_data: str = None,
-        chat_history: List[Dict[str, str]] = None,
-        callback=None
-    ) -> str:
-        """
-        Execute a queue of tasks sequentially with shared context.
-
-        Args:
-            agent_model: Agent model instance
-            message: Original user message
-            tasks: List of tasks to execute
-            fetched_data: Data fetched from agent tools (e.g., stock analysis)
-            chat_history: Previous chat messages
-            callback: Optional async callback function
-
-        Returns:
-            Combined response from all task executions
-        """
-        print(f"📋 TASK QUEUE EXECUTION: Processing {len(tasks)} tasks...")
-
-        # Prepare enriched context with fetched data
-        enriched_history = chat_history.copy() if chat_history else []
-
-        if fetched_data:
-            enriched_history.append({
-                "role": "user",
-                "content": message
-            })
-            # Clean markdown from fetched data before adding to history
-            # This ensures emails and documents don't contain markdown formatting
-            cleaned_data = self._clean_markdown_formatting(fetched_data)
-            enriched_history.append({
-                "role": "assistant",
-                "content": cleaned_data
-            })
-
-        # PERFORMANCE OPTIMIZATION: Execute independent tasks in parallel using asyncio.gather()
-        # This provides 3-4x speedup for multi-task requests
-        print(f"⚡ Parallelizing {len(tasks)} independent tasks for faster execution...")
-
-        async def execute_single_task(task_index: int, task: Dict[str, Any]) -> tuple:
-            """
-            Execute a single task and return its result with index for ordering.
-
-            Returns:
-                Tuple of (task_index, result_message, error)
-            """
-            action_name = task['action']
-            platform = task['platform']
-            tool_slugs = task['tool_slugs']
-
-            print(f"  Starting task {task_index + 1}/{len(tasks)}: {action_name} on {platform}...")
-            print(f"     Tools: {tool_slugs}")
-
-            try:
-                # Create task-specific message with explicit single execution
-                if fetched_data:
-                    if action_name == 'send_email':
-                        task_message = (
-                            f"Send ONE email with the AAPL stock analysis to the specified address.\n"
-                            f"Use the stock data from the conversation above.\n"
-                            f"Execute the GMAIL_SEND_EMAIL tool exactly once and stop."
-                        )
-                    elif action_name == 'create_document' or action_name == 'save_drive':
-                        task_message = (
-                            f"Create ONE Google Docs document with the AAPL stock analysis.\n"
-                            f"Use the stock data from the conversation above.\n"
-                            f"Execute the GOOGLEDOCS_CREATE_DOCUMENT tool exactly once and stop."
-                        )
-                    else:
-                        task_message = (
-                            f"Task: {action_name} - {message}\n\n"
-                            f"Use the data from the conversation above.\n"
-                            f"Execute the required tool exactly once and stop."
-                        )
-                else:
-                    task_message = f"Task: {action_name} - {message}\nExecute exactly once and stop."
-
-                # Execute this specific task with its tools
-                # Skip intent validation since we already detected the platform in task parsing
-                # CRITICAL: Limit to specific tools to prevent agent from using wrong tools
-                if action_name == 'send_email':
-                    # For email, use ONLY the send email tool (not attachment version unless files)
-                    limited_tools = ['GMAIL_SEND_EMAIL']
-                elif action_name == 'create_document' or action_name == 'save_drive':
-                    # For Google Docs, use only the create document tool
-                    limited_tools = ['GOOGLEDOCS_CREATE_DOCUMENT']
-                else:
-                    # Use the originally detected tools
-                    limited_tools = tool_slugs[:1]  # Limit to first tool to prevent confusion
-
-                print(f"     Using limited tools: {limited_tools}")
-
-                task_response = await self._chat_with_composio(
-                    agent_model,
-                    task_message,
-                    limited_tools,  # Use limited tools instead of all tools
-                    enriched_history.copy(),  # Use a copy to avoid race conditions
-                    callback,
-                    file_attachments=None,
-                    skip_intent_validation=True  # Skip for task queue - we already know the platform
-                )
-
-                print(f"  ✅ Task {task_index + 1} ({action_name}) completed")
-                return (task_index, f"✅ {action_name} completed successfully", None)
-
-            except Exception as e:
-                error_msg = str(e)
-                print(f"  ❌ Task {task_index + 1} ({action_name}) failed: {error_msg}")
-                return (task_index, f"❌ {action_name} failed: {error_msg}", error_msg)
-
-        # Execute all tasks concurrently
-        task_coroutines = [execute_single_task(i, task) for i, task in enumerate(tasks)]
-        task_execution_results = await asyncio.gather(*task_coroutines, return_exceptions=True)
-
-        # Process results in original order
-        task_results = []
-        for result in sorted(task_execution_results, key=lambda x: x[0] if isinstance(x, tuple) else 0):
-            if isinstance(result, tuple):
-                _, result_msg, error = result
-                task_results.append(result_msg)
-            elif isinstance(result, Exception):
-                # Handle exceptions from gather
-                task_results.append(f"❌ Task failed with exception: {str(result)}")
-            else:
-                task_results.append(f"❌ Task failed with unexpected result")
-
-        # Combine results with a nice formatted summary
-        # For multi-task execution, provide a user-friendly summary like competitors
-
-        # Build a professional summary
-        summary_parts = ["I have completed your requests! Here's the summary of what I did:\n"]
-
-        # Parse the results to create numbered list
-        task_number = 1
-        for i, task in enumerate(tasks):
-            if i < len(task_results) and task_results[i].startswith("✅"):
-                action = task['action']
-                platform = task['platform']
-
-                if action == 'send_email':
-                    # SECURITY: Use safe email extraction with validation
-                    email = extract_email_safely(message)
-                    if email:
-                        summary_parts.append(f"{task_number}. Sent the AAPL Stock Analysis to your email at {email}.")
-                    else:
-                        summary_parts.append(f"{task_number}. Sent the AAPL Stock Analysis to your email.")
-
-                elif action == 'save_drive' or action == 'create_document':
-                    summary_parts.append(f'{task_number}. Created a new Google Docs document titled "AAPL Stock Analysis." You can view and edit it in your Google Drive.')
-
-                else:
-                    summary_parts.append(f"{task_number}. Completed {action} on {platform}.")
-
-                task_number += 1
-
-        summary_parts.append("\nFeel free to let me know if you need anything else or any additional details!")
-
-        final_response = "\n".join(summary_parts)
-
-        return final_response
 
     def _clean_markdown_formatting(self, text: str) -> str:
         """

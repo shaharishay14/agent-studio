@@ -72,30 +72,19 @@ def test_only_write_actions_can_be_preapproved(api, agent):
 # --- Telegram webhook -----------------------------------------------------------------------------
 
 class FakeAgentService:
-    """Records which chat path the webhook used and with what history."""
+    """Records how the webhook asked to run the agent."""
     calls = []
 
     def __init__(self, user):
         pass
 
-    async def select_tools_for_prompt(self, *args, **kwargs):
-        return ['GMAIL_FETCH_EMAILS']
+    async def run(self, agent_model, message, chat_history=None, callback=None, file_attachments=None,
+                  allow_connected_apps=True):
+        FakeAgentService.calls.append({'allow_connected_apps': allow_connected_apps, 'chat_history': chat_history})
+        return '**reply**'
 
-    async def _record(self, path, chat_history):
-        FakeAgentService.calls.append((path, chat_history))
-        return f'reply via {path}'
-
-    async def _chat_with_mixed_tools(self, agent_model, message, composio_tool_slugs, chat_history=None, callback=None):
-        return await self._record('mixed', chat_history)
-
-    async def _chat_with_composio(self, agent_model, message, specific_tools_slugs=None, chat_history=None, **kwargs):
-        return await self._record('composio', chat_history)
-
-    async def _chat_with_agent_tools(self, agent_model, message, chat_history=None, **kwargs):
-        return await self._record('agent_tools', chat_history)
-
-    async def _chat_without_tools(self, agent_model, message, chat_history=None, callback=None):
-        return await self._record('no_tools', chat_history)
+    def _clean_markdown_formatting(self, text):
+        return text.replace('**', '')
 
 
 @pytest.fixture
@@ -131,7 +120,8 @@ def test_owner_links_with_the_code_and_gets_connected_apps(agent, telegram):
     assert 'Linked' in send.call_args.args[2]
 
     post_update(agent, 'summarize my inbox', from_id=42)
-    assert FakeAgentService.calls[-1][0] == 'mixed'                      # owner: Composio + built-in tools
+    assert FakeAgentService.calls[-1]['allow_connected_apps'] is True    # owner: connected apps allowed
+    assert send.call_args.args[2] == 'reply'                             # markdown stripped for Telegram
     assert ChatMessage.objects.filter(agent=agent).count() == 2          # saved to the owner's history
 
 
@@ -139,9 +129,9 @@ def test_stranger_gets_no_owner_data(agent, telegram):
     ChatMessage.objects.create(agent=agent, role='user', content='my private web chat')
     post_update(agent, 'what is in the inbox?', from_id=99)
 
-    path, history = FakeAgentService.calls[-1]
-    assert path == 'agent_tools'                                         # no Composio tools
-    assert 'my private web chat' not in str(history)                     # no owner history
+    call = FakeAgentService.calls[-1]
+    assert call['allow_connected_apps'] is False                         # no owner apps
+    assert 'my private web chat' not in str(call['chat_history'])        # no owner history
     assert ChatMessage.objects.filter(agent=agent).count() == 1          # stranger not written into it
     session = MessagingSession.objects.get(external_user_id='99')
     assert [m['role'] for m in session.recent_messages] == ['user', 'assistant']

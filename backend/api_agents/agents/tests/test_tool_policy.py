@@ -34,8 +34,12 @@ def make_tool(name, on_invoke):
 
 async def decide_when_asked(callback, status):
     """Acts as the user clicking Approve/Deny: waits for the card, then updates the DB row."""
-    while not any(event == 'approval_required' for event, _ in callback.recorded):
+    for _ in range(500):  # give up after ~5s: no card means the test should fail, not hang
+        if any(event == 'approval_required' for event, _ in callback.recorded):
+            break
         await asyncio.sleep(0.01)
+    else:
+        return
     approval_id = [data for event, data in callback.recorded if event == 'approval_required'][-1]['approval_id']
     await sync_to_async(ToolApproval.objects.filter(id=approval_id).update)(status=status)
 

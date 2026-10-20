@@ -327,42 +327,15 @@ def telegram_webhook(request, agent_id):
         # Generate response using async chat methods
         import asyncio
 
-        async def generate_response():
-            # Determine which tools are available (connected apps are the owner's data: owner only)
-            has_composio_tools = bool(agent.app_connections) and is_owner
-            has_agent_tools = bool(agent.agent_tools)
-
-            if has_composio_tools and has_agent_tools:
-                # Get Composio tool slugs
-                specific_tools_slugs = await agent_service.select_tools_for_prompt(text, agent.app_connections)
-                return await agent_service._chat_with_mixed_tools(
-                    agent_model=agent,
-                    message=text,
-                    composio_tool_slugs=specific_tools_slugs,
-                    chat_history=chat_history
-                )
-            elif has_composio_tools:
-                specific_tools_slugs = await agent_service.select_tools_for_prompt(text, agent.app_connections)
-                return await agent_service._chat_with_composio(
-                    agent_model=agent,
-                    message=text,
-                    specific_tools_slugs=specific_tools_slugs,
-                    chat_history=chat_history
-                )
-            elif has_agent_tools:
-                return await agent_service._chat_with_agent_tools(
-                    agent_model=agent,
-                    message=text,
-                    chat_history=chat_history
-                )
-            else:
-                return await agent_service._chat_without_tools(
-                    agent_model=agent,
-                    message=text,
-                    chat_history=chat_history
-                )
-
-        response_content = asyncio.run(generate_response())
+        # Connected apps are the owner's data: only the verified owner may use them
+        response_content = asyncio.run(agent_service.run(
+            agent_model=agent,
+            message=text,
+            chat_history=chat_history,
+            allow_connected_apps=is_owner,
+        ))
+        # Telegram shows plain text (no parse_mode), so strip markdown symbols like ** and ###
+        response_content = agent_service._clean_markdown_formatting(response_content)
 
         # Save assistant response
         if is_owner:

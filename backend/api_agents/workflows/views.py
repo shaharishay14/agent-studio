@@ -235,27 +235,12 @@ class TriggerViewSet(viewsets.ModelViewSet):
             test_prompt = f"[TEST TRIGGER] {trigger.action_prompt}"
             chat_history_formatted.append({"role": "user", "content": test_prompt})
 
-            # 3. Select tools for this prompt
-            specific_tools_slugs = agent_service.select_tools_for_prompt(
-                user_prompt=test_prompt,
-                app_names=trigger.agent.app_connections,
-                chat_history=chat_history_formatted
-            )
-
-            # 4. Execute
-            if not specific_tools_slugs:
-                response = asyncio.run(agent_service._chat_without_tools(
-                    agent_model=trigger.agent,
-                    message=test_prompt,
-                    chat_history=chat_history_formatted
-                ))
-            else:
-                response = asyncio.run(agent_service._chat_with_composio(
-                    agent_model=trigger.agent,
-                    message=test_prompt,
-                    specific_tools_slugs=specific_tools_slugs,
-                    chat_history=chat_history_formatted
-                ))
+            # 3. Execute
+            response = asyncio.run(agent_service.run(
+                agent_model=trigger.agent,
+                message=test_prompt,
+                chat_history=chat_history_formatted,
+            ))
 
             # 5. Log the execution
             execution = TriggerExecution.objects.create(
@@ -535,62 +520,12 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                     "content": msg.content
                 })
 
-            # Select tools for the prompt
-            specific_tools_slugs = asyncio.run(
-                agent_service.select_tools_for_prompt(
-                    user_prompt=prompt,
-                    app_names=agent.app_connections,
-                    chat_history=chat_history_formatted,
-                    has_file_attachments=False
-                )
-            )
-
-            # Determine which chat method to use
-            has_composio_tools = bool(specific_tools_slugs and agent_service.composio_client)
-            has_agent_tools = bool(agent.agent_tools)
-
-            # Execute chat (non-streaming, synchronous)
-            async def run_chat():
-                if has_composio_tools and has_agent_tools:
-                    # Agent has both Composio and agent tools
-                    response = await agent_service._chat_with_mixed_tools(
-                        agent_model=agent,
-                        message=prompt,
-                        composio_tool_slugs=specific_tools_slugs,
-                        chat_history=chat_history_formatted,
-                        callback=None  # No streaming for execute
-                    )
-                elif has_composio_tools:
-                    # Only Composio tools
-                    response = await agent_service._chat_with_composio(
-                        agent_model=agent,
-                        message=prompt,
-                        specific_tools_slugs=specific_tools_slugs,
-                        chat_history=chat_history_formatted,
-                        callback=None,
-                        file_attachments=None
-                    )
-                elif has_agent_tools:
-                    # Only agent tools
-                    response = await agent_service._chat_with_agent_tools(
-                        agent_model=agent,
-                        message=prompt,
-                        chat_history=chat_history_formatted,
-                        callback=None,
-                        file_attachments=None
-                    )
-                else:
-                    # No tools - basic chat
-                    response = await agent_service._chat_without_tools(
-                        agent_model=agent,
-                        message=prompt,
-                        chat_history=chat_history_formatted,
-                        callback=None
-                    )
-                return response
-
-            # Run the chat
-            agent_response = asyncio.run(run_chat())
+            # Run the chat (non-streaming: nobody is watching, so writes need pre-approval)
+            agent_response = asyncio.run(agent_service.run(
+                agent_model=agent,
+                message=prompt,
+                chat_history=chat_history_formatted,
+            ))
 
             # Save execution log
             execution_time_ms = int((time.time() - start_time) * 1000)

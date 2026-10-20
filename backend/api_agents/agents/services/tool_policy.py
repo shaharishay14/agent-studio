@@ -457,6 +457,8 @@ def guard_function_tools(tools: List[Any], gate: PermissionGate) -> List[Any]:
                 blocked = await gate.check(original_tool.name, arguments)
                 if blocked:
                     return blocked
+                if gate.callback:
+                    await gate.callback('tool_call_start', {'tool': original_tool.name, 'parameters': arguments})
                 result = await original_tool.on_invoke_tool(ctx, input_json)
                 text = result if isinstance(result, str) else json.dumps(result, default=str)
                 return gate.record_output(original_tool.name, cap_tool_result(text))

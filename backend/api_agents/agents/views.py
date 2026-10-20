@@ -1451,38 +1451,6 @@ class AgentViewSet(viewsets.ModelViewSet):
                     compacted = await agent_service.compact_chat_history(agent.id, older_history)
                     chat_history_formatted = compacted + chat_history_formatted
 
-                # 5. Dynamically select tools (with history and file attachment info)
-                # 🚀 PHASE 2.5 HYBRID OPTIMIZATION: Load TOP 10 tools per app (no separate tool selection)
-                # ✅ ENABLED: Phase 2.5 loads curated TOP 10 tools per app
-                # - Saves 2-3 seconds (no separate AI call for tool selection)
-                # - Reduces token usage by 80-90% (100-150 tools vs 800+)
-                # - Prevents token explosion (Phase 2 loaded 500+ GitHub tools!)
-                # - Better LLM performance with focused tool set
-                use_phase2 = True  # Toggle this to enable/disable Phase 2.5 optimization
-
-                if use_phase2:
-                    print(f"🚀 PHASE 2.5: Skipping separate tool selection (will load TOP 10 tools per app)")
-                    specific_tools_slugs = None  # Not needed - Phase 2.5 loads TOP 10 tools internally
-                else:
-                    print(f"Dynamically selecting tools for prompt: '{message[:50]}...'")
-                    # ✅ select_tools_for_prompt is now async, no need for sync_to_async wrapper
-                    specific_tools_slugs = await agent_service.select_tools_for_prompt(
-                        user_prompt=message,
-                        app_names=agent.app_connections,
-                        chat_history=chat_history_formatted,  # Pass rich history
-                        has_file_attachments=bool(file_ids)  # Indicate if files are attached
-                    )
-
-
-                # 6. Execute the chat with streaming callbacks
-                # Determine which tools are available and route to appropriate handler
-                # 🚀 PHASE 2.5: If using Phase 2.5, check for connected apps instead of specific_tools_slugs
-                if use_phase2:
-                    has_composio_tools = bool(agent.app_connections and agent_service.composio_client)
-                else:
-                    has_composio_tools = bool(specific_tools_slugs and agent_service.composio_client)
-                has_agent_tools = bool(agent.agent_tools)
-
                 # Create async queue for real-time event streaming
                 event_queue = asyncio.Queue()
                 response_container = {'response': ''}
@@ -1559,68 +1527,13 @@ class AgentViewSet(viewsets.ModelViewSet):
                 async def run_chat():
                     try:
                         print("🚀 Starting chat execution in background task...")
-                        if has_composio_tools and has_agent_tools:
-                            # Agent has both Composio and agent tools
-                            if use_phase2:
-                                print(f"🚀 PHASE 2.5: Executing chat with TOP 10 Composio tools per app + {len(agent.agent_tools)} agent tools")
-                            else:
-                                print(f"Executing chat with mixed tools: {len(specific_tools_slugs)} Composio + {len(agent.agent_tools)} agent tools")
-
-                            # Note: _chat_with_mixed_tools doesn't support Phase 2.5 yet
-                            # For now, if Phase 2.5 is enabled with mixed tools, we use _chat_with_composio
-                            if use_phase2:
-                                # Phase 2.5 with mixed tools: Use composio with TOP 10 tools
-                                response = await agent_service._chat_with_composio(
-                                    agent_model=agent,
-                                    message=message,
-                                    specific_tools_slugs=specific_tools_slugs,
-                                    chat_history=chat_history_formatted,
-                                    callback=stream_callback,
-                                    file_attachments=file_attachments_for_composio if file_attachments_for_composio else None,
-                                    use_phase2_optimization=use_phase2
-                                )
-                            else:
-                                response = await agent_service._chat_with_mixed_tools(
-                                    agent_model=agent,
-                                    message=message,
-                                    composio_tool_slugs=specific_tools_slugs,
-                                    chat_history=chat_history_formatted,
-                                    callback=stream_callback
-                                )
-                        elif has_composio_tools:
-                            # Only Composio tools
-                            if use_phase2:
-                                print(f"🚀 PHASE 2.5: Executing chat with TOP 10 tools per app for connected apps")
-                            else:
-                                print(f"Executing chat with {len(specific_tools_slugs)} Composio tools")
-                            response = await agent_service._chat_with_composio(
-                                agent_model=agent,
-                                message=message,
-                                specific_tools_slugs=specific_tools_slugs,
-                                chat_history=chat_history_formatted,
-                                callback=stream_callback,
-                                file_attachments=file_attachments_for_composio if file_attachments_for_composio else None,
-                                use_phase2_optimization=use_phase2  # 🚀 Pass Phase 2.5 flag
-                            )
-                        elif has_agent_tools:
-                            # Only agent tools
-                            print(f"Executing chat with {len(agent.agent_tools)} agent tools")
-                            response = await agent_service._chat_with_agent_tools(
-                                agent_model=agent,
-                                message=message,
-                                chat_history=chat_history_formatted,
-                                callback=stream_callback,
-                                file_attachments=file_attachments_for_composio if file_attachments_for_composio else None
-                            )
-                        else:
-                            # No tools needed. Fallback to basic chat.
-                            print("No tools available. Falling back to basic chat.")
-                            response = await agent_service._chat_without_tools(
-                                agent_model=agent,
-                                message=message,
-                                chat_history=chat_history_formatted,
-                                callback=stream_callback
-                            )
+                        response = await agent_service.run(
+                            agent_model=agent,
+                            message=message,
+                            chat_history=chat_history_formatted,
+                            callback=stream_callback,
+                            file_attachments=file_attachments_for_composio or None,
+                        )
 
                         print(f"✅ Chat execution completed. Response length: {len(response)}")
                         response_container['response'] = response
