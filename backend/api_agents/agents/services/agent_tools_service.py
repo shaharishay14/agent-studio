@@ -4,12 +4,87 @@ Agent Tools Service
 Implements agent-specific tools (non-Composio) like weather, calculator, etc.
 """
 
+import ast
+import math
+import operator
 import requests
 import json
 import re
 from typing import Dict, Any
 from django.conf import settings
 from bs4 import BeautifulSoup
+
+
+def tool_error(problem: str, next_step: str) -> Dict[str, Any]:
+    """
+    Builds a tool error the model can act on: what went wrong + what to do next.
+    """
+    return {'success': False, 'error': f'{problem} Next step: {next_step}'}
+
+
+def api_error(service: str, e: Exception) -> Dict[str, Any]:
+    """
+    Turns a requests exception into a tool error without the raw message.
+    Raw messages include the request URL, which can contain API keys.
+    """
+    if isinstance(e, (requests.exceptions.Timeout, requests.exceptions.ConnectionError)):
+        return tool_error(f'{service} did not respond.', f'Retry once. If it fails again, tell the user {service} is unavailable.')
+
+    status = getattr(getattr(e, 'response', None), 'status_code', None)
+    if status in (401, 403):
+        return tool_error(f'{service} rejected the request (HTTP {status}).', f'Do not retry. Tell the user {service} access is not configured or not allowed.')
+    if status == 429:
+        return tool_error(f'{service} rate limit reached (HTTP 429).', 'Do not retry now. Tell the user to try again in a minute.')
+    if status == 404:
+        return tool_error(f'{service} returned "not found" (HTTP 404).', 'Check the input is correct before retrying.')
+    if status and status >= 500:
+        return tool_error(f'{service} had a server error (HTTP {status}).', f'Retry once. If it fails again, tell the user {service} is unavailable.')
+    return tool_error(f'{service} request failed.', f'Do not retry. Tell the user {service} is unavailable.')
+
+
+def clamp_int(value, low: int, high: int, default: int) -> int:
+    """Keeps a model-provided count within limits (models sometimes ask for 100 results, or pass "5")."""
+    try:
+        return max(low, min(high, int(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+# Calculator: only these operators, functions and constants are allowed
+CALC_OPERATORS = {
+    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+    ast.Div: operator.truediv, ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod,
+    ast.Pow: operator.pow, ast.USub: operator.neg, ast.UAdd: operator.pos,
+}
+CALC_FUNCTIONS = {
+    'sqrt': math.sqrt, 'log': math.log, 'log10': math.log10, 'exp': math.exp,
+    'sin': math.sin, 'cos': math.cos, 'tan': math.tan,
+    'abs': abs, 'round': round, 'floor': math.floor, 'ceil': math.ceil,
+}
+CALC_CONSTANTS = {'pi': math.pi, 'e': math.e}
+CALC_MAX_EXPONENT = 1000  # blocks things like 9 ** 9 ** 9 that would hang the server
+
+
+def _eval_math_node(node):
+    """Evaluates a parsed expression, allowing only numbers, CALC_OPERATORS, CALC_FUNCTIONS and CALC_CONSTANTS."""
+    if isinstance(node, ast.Expression):
+        return _eval_math_node(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.Name) and node.id in CALC_CONSTANTS:
+        return CALC_CONSTANTS[node.id]
+    if isinstance(node, ast.UnaryOp) and type(node.op) in CALC_OPERATORS:
+        return CALC_OPERATORS[type(node.op)](_eval_math_node(node.operand))
+    if isinstance(node, ast.BinOp) and type(node.op) in CALC_OPERATORS:
+        left, right = _eval_math_node(node.left), _eval_math_node(node.right)
+        if isinstance(node.op, ast.Pow) and abs(right) > CALC_MAX_EXPONENT:
+            raise ValueError(f'Exponent {right} is too large (max {CALC_MAX_EXPONENT}).')
+        return CALC_OPERATORS[type(node.op)](left, right)
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in CALC_FUNCTIONS and not node.keywords):
+        return CALC_FUNCTIONS[node.func.id](*[_eval_math_node(arg) for arg in node.args])
+
+    raise ValueError(f'"{ast.unparse(node)}" is not supported.')
 
 
 class AgentToolsService:
@@ -55,21 +130,21 @@ class AgentToolsService:
 
         method = tool_methods.get(normalized_tool_name)
         if not method:
-            return {
-                'success': False,
-                'error': f'Unknown tool: {tool_name} (normalized: {normalized_tool_name})'
-            }
+            return tool_error(
+                f'There is no tool named "{tool_name}".',
+                f'Use one of the tools you were given: {", ".join(function_to_tool)}.'
+            )
 
         try:
             return method(**kwargs)
+        except TypeError as e:
+            # Wrong or missing arguments, e.g. "got an unexpected keyword argument 'city'"
+            return tool_error(f'Wrong arguments for {tool_name}: {e}', 'Call it again with exactly the parameters in its schema.')
         except Exception as e:
             print(f"Error executing tool {tool_name}: {e}")
             import traceback
             traceback.print_exc()
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return tool_error(f'{tool_name} failed unexpectedly.', 'Do not retry. Tell the user this tool is not working right now.')
 
     def get_weather(self, location: str) -> Dict[str, Any]:
         """
@@ -96,10 +171,10 @@ class AgentToolsService:
             geocode_data = geocode_response.json()
 
             if not geocode_data.get('results'):
-                return {
-                    'success': False,
-                    'error': f'Location "{location}" not found. Please try a more specific location name.'
-                }
+                return tool_error(
+                    f'Location "{location}" was not found.',
+                    'Retry with just the city name in English (e.g. "Tel Aviv", not "TLV"). If it still fails, ask the user.'
+                )
 
             # Get the first result
             location_data = geocode_data['results'][0]
@@ -156,33 +231,23 @@ class AgentToolsService:
                 'success': True,
                 'data': {
                     'location': full_location,
-                    'latitude': latitude,
-                    'longitude': longitude,
-                    'temperature': current['temperature_2m'],
-                    'feels_like': current['apparent_temperature'],
-                    'humidity': current['relative_humidity_2m'],
-                    'description': description,
-                    'weather_code': weather_code,
-                    'wind_speed': current['wind_speed_10m'],
-                    'precipitation': current.get('precipitation', 0),
-                    'unit': '°C'
+                    'temperature_c': current['temperature_2m'],
+                    'feels_like_c': current['apparent_temperature'],
+                    'humidity_percent': current['relative_humidity_2m'],
+                    'conditions': description,
+                    'wind_kmh': current['wind_speed_10m'],
+                    'precipitation_mm': current.get('precipitation', 0)
                 }
             }
 
         except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Weather API error: {str(e)}'
-            }
-        except (KeyError, IndexError) as e:
-            return {
-                'success': False,
-                'error': f'Error parsing weather data: {str(e)}'
-            }
+            return api_error('The weather service', e)
+        except (KeyError, IndexError):
+            return tool_error('The weather service returned data in an unexpected format.', 'Do not retry. Tell the user weather is unavailable right now.')
 
     def calculate(self, expression: str) -> Dict[str, Any]:
         """
-        Safely evaluate a mathematical expression.
+        Safely evaluate a mathematical expression (parsed, never passed to eval).
 
         Args:
             expression: Mathematical expression to evaluate
@@ -190,37 +255,30 @@ class AgentToolsService:
         Returns:
             dict with calculation result
         """
+        allowed = ('numbers, + - * / // % ** (or ^), parentheses, '
+                   f'functions {", ".join(CALC_FUNCTIONS)}, constants {", ".join(CALC_CONSTANTS)}')
+
+        normalized = expression.replace('^', '**').replace('×', '*').replace('÷', '/')
+
         try:
-            # Remove any potentially dangerous characters
-            # Only allow: digits, operators, parentheses, decimal points, spaces
-            safe_chars = set('0123456789+-*/().,% ')
-            if not all(c in safe_chars for c in expression):
-                return {
-                    'success': False,
-                    'error': 'Expression contains invalid characters'
-                }
+            result = _eval_math_node(ast.parse(normalized, mode='eval'))
+        except SyntaxError:
+            return tool_error(
+                f'Could not parse "{expression}".',
+                f'Rewrite it using only {allowed}. Example: "10 * (5 + 3)".'
+            )
+        except ZeroDivisionError:
+            return tool_error(f'"{expression}" divides by zero.', 'Check the numbers, or tell the user the result is undefined.')
+        except (ValueError, TypeError, OverflowError) as e:
+            return tool_error(f'Cannot calculate "{expression}": {e}', f'Use only {allowed}.')
 
-            # Replace common math expressions
-            expression = expression.replace('^', '**')  # Power operator
-            expression = expression.replace('×', '*')
-            expression = expression.replace('÷', '/')
-
-            # Use eval with limited builtins for safety
-            result = eval(expression, {"__builtins__": {}}, {})
-
-            return {
-                'success': True,
-                'data': {
-                    'expression': expression,
-                    'result': result
-                }
+        return {
+            'success': True,
+            'data': {
+                'expression': expression,
+                'result': result
             }
-
-        except (SyntaxError, NameError, TypeError, ZeroDivisionError) as e:
-            return {
-                'success': False,
-                'error': f'Calculation error: {str(e)}'
-            }
+        }
 
     def get_stock_data(self, ticker: str) -> Dict[str, Any]:
         """
@@ -242,10 +300,10 @@ class AgentToolsService:
             hist = stock_ticker.history(period='1d')
 
             if hist.empty:
-                return {
-                    'success': False,
-                    'error': f'No data found for ticker: {ticker}'
-                }
+                return tool_error(
+                    f'No market data for "{ticker}".',
+                    'Make sure it is a ticker symbol (e.g. "AAPL"), not a company name ("Apple"). If unsure of the symbol, ask the user.'
+                )
 
             current_price = hist['Close'].iloc[-1]
 
@@ -264,15 +322,9 @@ class AgentToolsService:
             }
 
         except ImportError:
-            return {
-                'success': False,
-                'error': 'yfinance library not installed'
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f'Stock data error: {str(e)}'
-            }
+            return tool_error('The stock data library is not installed on the server.', 'Do not retry. Tell the user stock data is unavailable.')
+        except Exception:
+            return tool_error(f'Could not get stock data for "{ticker}".', 'Retry once. If it fails again, tell the user stock data is unavailable.')
 
     def search_youtube(self, query: str, max_results: int = 5) -> Dict[str, Any]:
         """
@@ -286,10 +338,9 @@ class AgentToolsService:
             dict with video search results
         """
         if not self.youtube_api_key:
-            return {
-                'success': False,
-                'error': 'YouTube API key not configured'
-            }
+            return tool_error('YouTube search is not configured on the server.', 'Do not retry. Tell the user YouTube search is unavailable.')
+
+        max_results = clamp_int(max_results, 1, 10, default=5)
 
         try:
             url = 'https://www.googleapis.com/youtube/v3/search'
@@ -309,9 +360,8 @@ class AgentToolsService:
             videos = []
             for item in data.get('items', []):
                 videos.append({
-                    'video_id': item['id']['videoId'],
                     'title': item['snippet']['title'],
-                    'description': item['snippet']['description'],
+                    'description': item['snippet']['description'][:200],
                     'channel': item['snippet']['channelTitle'],
                     'published_at': item['snippet']['publishedAt'],
                     'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}"
@@ -327,10 +377,7 @@ class AgentToolsService:
             }
 
         except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'YouTube API error: {str(e)}'
-            }
+            return api_error('YouTube', e)
 
     def web_search(self, query: str, num_results: int = 5) -> Dict[str, Any]:
         """
@@ -344,10 +391,9 @@ class AgentToolsService:
             dict with search results
         """
         if not self.serpapi_key:
-            return {
-                'success': False,
-                'error': 'Web search API key not configured'
-            }
+            return tool_error('Web search is not configured on the server.', 'Do not retry. Tell the user web search is unavailable.')
+
+        num_results = clamp_int(num_results, 1, 10, default=5)
 
         try:
             url = 'https://serpapi.com/search'
@@ -364,12 +410,11 @@ class AgentToolsService:
             data = response.json()
 
             results = []
-            for item in data.get('organic_results', []):
+            for item in data.get('organic_results', [])[:num_results]:
                 results.append({
                     'title': item.get('title'),
-                    'link': item.get('link'),
-                    'snippet': item.get('snippet'),
-                    'position': item.get('position')
+                    'url': item.get('link'),
+                    'snippet': item.get('snippet')
                 })
 
             return {
@@ -382,10 +427,7 @@ class AgentToolsService:
             }
 
         except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Web search API error: {str(e)}'
-            }
+            return api_error('Web search', e)
 
     def read_website(self, url: str) -> Dict[str, Any]:
         """
@@ -423,138 +465,21 @@ class AgentToolsService:
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
             text = '\n'.join(chunk for chunk in chunks if chunk)
 
-            # Limit text length
-            max_chars = 5000
-            if len(text) > max_chars:
-                text = text[:max_chars] + '...'
+            # Limit text length (below the context cap in agent_service, which adds JSON overhead)
+            max_chars = 3500
+            truncated = len(text) > max_chars
 
             return {
                 'success': True,
                 'data': {
                     'url': url,
                     'title': soup.title.string if soup.title else '',
-                    'content': text,
-                    'content_length': len(text)
+                    'content': text[:max_chars],
+                    'truncated': truncated
                 }
             }
 
         except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Website read error: {str(e)}'
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f'Content parsing error: {str(e)}'
-            }
-
-    def get_tool_function_definition(self, tool_name: str) -> Dict[str, Any]:
-        """
-        Get OpenAI function definition for a tool.
-        Used to pass tool specs to the AI model.
-
-        Args:
-            tool_name: Name of the tool
-
-        Returns:
-            OpenAI function definition dict
-        """
-        definitions = {
-            'weather': {
-                'name': 'get_weather',
-                'description': 'Get current weather information for a location',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'location': {
-                            'type': 'string',
-                            'description': 'City name or location (e.g., "London", "New York, US")'
-                        }
-                    },
-                    'required': ['location']
-                }
-            },
-            'calculator': {
-                'name': 'calculate',
-                'description': 'Perform mathematical calculations',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'expression': {
-                            'type': 'string',
-                            'description': 'Mathematical expression to evaluate (e.g., "2 + 2", "sqrt(16)")'
-                        }
-                    },
-                    'required': ['expression']
-                }
-            },
-            'yahoo_finance': {
-                'name': 'get_stock_data',
-                'description': 'Get stock market data and financial information',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'ticker': {
-                            'type': 'string',
-                            'description': 'Stock ticker symbol (e.g., "AAPL", "GOOGL", "TSLA")'
-                        }
-                    },
-                    'required': ['ticker']
-                }
-            },
-            'youtube': {
-                'name': 'search_youtube',
-                'description': 'Search for YouTube videos',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'query': {
-                            'type': 'string',
-                            'description': 'Search query for YouTube videos'
-                        },
-                        'max_results': {
-                            'type': 'integer',
-                            'description': 'Maximum number of results to return (default: 5)',
-                            'default': 5
-                        }
-                    },
-                    'required': ['query']
-                }
-            },
-            'web_search': {
-                'name': 'web_search',
-                'description': 'Search the web for information',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'query': {
-                            'type': 'string',
-                            'description': 'Search query'
-                        },
-                        'num_results': {
-                            'type': 'integer',
-                            'description': 'Number of results to return (default: 5)',
-                            'default': 5
-                        }
-                    },
-                    'required': ['query']
-                }
-            },
-            'website_reader': {
-                'name': 'read_website',
-                'description': 'Read and extract text content from a website URL',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'url': {
-                            'type': 'string',
-                            'description': 'Website URL to read'
-                        }
-                    },
-                    'required': ['url']
-                }
-            }
-        }
-
-        return definitions.get(tool_name, {})
+            return api_error(f'The website {url}', e)
+        except Exception:
+            return tool_error(f'Could not extract text from {url}.', 'Try a different URL, for example another web_search result.')
