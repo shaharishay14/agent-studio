@@ -38,6 +38,7 @@ from ..tools.composio_config import APP_SLUGS, APP_METADATA, TOP_SLUGS_BY_APP
 from ..agents.tools_config import AGENT_TOOLS, get_all_tool_names, is_valid_tool
 import traceback
 import asyncio
+import secrets
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -1030,8 +1031,13 @@ class AgentViewSet(viewsets.ModelViewSet):
             # Force HTTPS for webhook (Telegram requires HTTPS)
             webhook_url = f"https://{host}/api/messaging/telegram/webhook/{pk}/"
 
+            # New secret and owner link code on every (re)connect; the owner links again from their own account
+            channel.webhook_secret = secrets.token_urlsafe(32)
+            channel.owner_external_user_id = ''
+            channel.owner_link_code = secrets.token_hex(4).upper()
+
             try:
-                set_webhook(bot_token, webhook_url)
+                set_webhook(bot_token, webhook_url, secret_token=channel.webhook_secret)
                 channel.webhook_url = webhook_url
                 channel.save()
             except TelegramAPIError as e:

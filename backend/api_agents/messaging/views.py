@@ -1,6 +1,7 @@
 """
 Messaging channel views for Telegram and WhatsApp integration.
 """
+import hmac
 import traceback
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -230,6 +231,13 @@ def telegram_webhook(request, agent_id):
         except MessagingChannel.DoesNotExist:
             return Response({'error': 'Channel not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        # SECURITY: only Telegram knows the secret we set with setWebhook. Channels connected before
+        # secrets existed have none: they keep working, but nobody can be verified as the owner.
+        received_secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+        if channel.webhook_secret and not hmac.compare_digest(received_secret, channel.webhook_secret):
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        is_verified = bool(channel.webhook_secret)
+
         agent = channel.agent
         bot_token = channel.bot_token
 
@@ -250,6 +258,18 @@ def telegram_webhook(request, agent_id):
         if not chat_id or not text:
             return Response({'ok': True})
 
+        # Owner linking: the owner sends /link <code> (shown in the web app) from their own Telegram account
+        if is_verified and channel.owner_link_code and text.strip() == f'/link {channel.owner_link_code}':
+            channel.owner_external_user_id = user_id
+            channel.owner_link_code = ''
+            channel.save(update_fields=['owner_external_user_id', 'owner_link_code'])
+            send_message(bot_token, chat_id, "✅ Linked. Messages from this account can now use your connected apps.")
+            return Response({'ok': True})
+
+        # Only the verified owner acts as the owner. Everyone else is an untrusted sender:
+        # no connected apps (Gmail, Slack...), no owner chat history.
+        is_owner = is_verified and bool(channel.owner_external_user_id) and user_id == channel.owner_external_user_id
+
         # Get or create session
         session, _ = MessagingSession.objects.get_or_create(
             channel=channel,
@@ -267,12 +287,13 @@ def telegram_webhook(request, agent_id):
         session.message_count += 1
         session.save()
 
-        # Save user message to chat history
-        ChatMessage.objects.create(
-            agent=agent,
-            role='user',
-            content=text
-        )
+        # Save user message to chat history (owner only - strangers get their own session history)
+        if is_owner:
+            ChatMessage.objects.create(
+                agent=agent,
+                role='user',
+                content=text
+            )
 
         # Check if user has credits (deduct 1 credit per message)
         if not agent.user.has_credits(1):
@@ -294,18 +315,21 @@ def telegram_webhook(request, agent_id):
         agent_service = AgentService(agent.user)
 
         # Get chat history for context
-        previous_messages = ChatMessage.objects.filter(agent=agent).order_by('-created_at')[:10]
-        chat_history = [
-            {"role": msg.role, "content": msg.content}
-            for msg in reversed(list(previous_messages))
-        ]
+        if is_owner:
+            previous_messages = ChatMessage.objects.filter(agent=agent).order_by('-created_at')[:10]
+            chat_history = [
+                {"role": msg.role, "content": msg.content}
+                for msg in reversed(list(previous_messages))
+            ]
+        else:
+            chat_history = session.recent_messages[-9:] + [{"role": "user", "content": text}]
 
         # Generate response using async chat methods
         import asyncio
 
         async def generate_response():
-            # Determine which tools are available
-            has_composio_tools = bool(agent.app_connections)
+            # Determine which tools are available (connected apps are the owner's data: owner only)
+            has_composio_tools = bool(agent.app_connections) and is_owner
             has_agent_tools = bool(agent.agent_tools)
 
             if has_composio_tools and has_agent_tools:
@@ -341,11 +365,15 @@ def telegram_webhook(request, agent_id):
         response_content = asyncio.run(generate_response())
 
         # Save assistant response
-        ChatMessage.objects.create(
-            agent=agent,
-            role='assistant',
-            content=response_content
-        )
+        if is_owner:
+            ChatMessage.objects.create(
+                agent=agent,
+                role='assistant',
+                content=response_content
+            )
+        else:
+            session.recent_messages = (chat_history + [{"role": "assistant", "content": response_content}])[-10:]
+            session.save(update_fields=['recent_messages'])
 
         # Send response to Telegram
         try:

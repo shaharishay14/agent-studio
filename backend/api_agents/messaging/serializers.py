@@ -6,13 +6,19 @@ class MessagingChannelSerializer(serializers.ModelSerializer):
     """Serializer for messaging channel connections"""
     platform_display = serializers.CharField(source='get_platform_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    owner_linked = serializers.SerializerMethodField(help_text="Whether the owner's own account is linked to this bot")
+    owner_link_code = serializers.CharField(read_only=True, help_text="Send /link <code> to the bot from your own account")
+
+    def get_owner_linked(self, obj) -> bool:
+        return bool(obj.owner_external_user_id)
 
     class Meta:
         model = messaging_models.MessagingChannel
         fields = [
             'id', 'platform', 'platform_display', 'bot_username',
             'status', 'status_display', 'message_count',
-            'last_message_at', 'created_at', 'updated_at'
+            'last_message_at', 'created_at', 'updated_at',
+            'owner_linked', 'owner_link_code'
         ]
         read_only_fields = ['id', 'message_count', 'last_message_at', 'created_at', 'updated_at']
 

@@ -22,6 +22,14 @@ class MessagingChannel(models.Model):
     bot_username = models.CharField(max_length=200, blank=True, help_text="Telegram bot username")
     webhook_url = models.URLField(blank=True, max_length=500, help_text="Webhook URL for this channel")
 
+    # Security: Telegram sends this secret with every update, so we know the request is really from Telegram.
+    # Without it, anyone knowing the webhook URL could fake messages "from" any Telegram user.
+    webhook_secret = models.CharField(max_length=64, blank=True, help_text="Secret Telegram sends in X-Telegram-Bot-Api-Secret-Token")
+
+    # The agent owner's own Telegram account: only messages from it get the owner's apps and history
+    owner_external_user_id = models.CharField(max_length=200, blank=True, help_text="Platform user ID of the agent owner")
+    owner_link_code = models.CharField(max_length=16, blank=True, help_text="One-time code the owner sends as /link <code>")
+
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     last_error = models.TextField(blank=True, help_text="Last error message if status is 'error'")
@@ -53,6 +61,10 @@ class MessagingSession(models.Model):
     # Session state
     is_active = models.BooleanField(default=True)
     message_count = models.IntegerField(default=0)
+
+    # Recent messages for senders who aren't the owner. Kept here, not in ChatMessage,
+    # so strangers never see the owner's history and never write into it.
+    recent_messages = models.JSONField(default=list, blank=True)
 
     # Conversation history (stored in ChatMessage model via agent)
     last_message_at = models.DateTimeField(auto_now=True)

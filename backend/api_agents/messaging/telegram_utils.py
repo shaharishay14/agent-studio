@@ -56,7 +56,7 @@ def verify_bot_token(bot_token: str) -> Dict[str, Any]:
         raise TelegramAPIError(f"Failed to connect to Telegram API: {str(e)}")
 
 
-def set_webhook(bot_token: str, webhook_url: str) -> bool:
+def set_webhook(bot_token: str, webhook_url: str, secret_token: str = '') -> bool:
     """
     Set the webhook URL for a Telegram bot.
 
@@ -76,6 +76,9 @@ def set_webhook(bot_token: str, webhook_url: str) -> bool:
         'url': webhook_url,
         'allowed_updates': ['message'],  # Only receive message updates
     }
+    if secret_token:
+        # Telegram will send this back in X-Telegram-Bot-Api-Secret-Token on every update
+        payload['secret_token'] = secret_token
 
     try:
         response = requests.post(url, json=payload, timeout=10)

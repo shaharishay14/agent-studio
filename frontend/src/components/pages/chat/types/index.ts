@@ -26,6 +26,7 @@ export interface ToolApprovalRequest {
   tool: string;
   arguments: Record<string, unknown>;
   timeout_seconds: number;
+  untrusted_sources: string[];
 }
 
 export type ApprovalDecision = 'approve' | 'deny';
@@ -145,6 +146,8 @@ export interface TelegramBotResponse {
   last_message_at: string | null;
   created_at: string;
   updated_at: string;
+  owner_linked: boolean;
+  owner_link_code: string;
 }
 
 export * from './triggers';

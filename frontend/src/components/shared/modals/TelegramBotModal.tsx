@@ -169,6 +169,24 @@ function TelegramBotModal() {
                   </span>
                 </div>
 
+                {/* Only the linked owner account gets the agent's connected apps and history */}
+                <div className={`mt-2.5 sm:mt-3 p-2.5 sm:p-3 rounded-lg text-xs sm:text-sm ${
+                  isDarkMode
+                    ? 'bg-gray-800 border border-gray-700 text-gray-300'
+                    : 'bg-white border border-gray-200 text-gray-700'
+                }`}>
+                  {connectedBot.owner_linked ? (
+                    <span>🔒 Your Telegram account is linked. Other people can chat with the bot, but can't use your connected apps or see your history.</span>
+                  ) : connectedBot.owner_link_code ? (
+                    <span>
+                      🔗 To use your connected apps from Telegram, send this from your own account:{' '}
+                      <code className="font-mono font-semibold">/link {connectedBot.owner_link_code}</code>
+                    </span>
+                  ) : (
+                    <span>🔗 Reconnect the bot to link your Telegram account and use your connected apps from Telegram.</span>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 mt-2.5 sm:mt-3">
                   <button
                     onClick={handleOpenChat}

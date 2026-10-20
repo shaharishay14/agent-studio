@@ -52,6 +52,17 @@ export const ApprovalCard = ({ isDarkMode, approval, isDeciding, onDecision }: A
           The agent wants to run <span className="font-medium">{formatToolName(approval.tool)}</span> with:
         </div>
 
+        {/* The request came after the agent read third-party content - it may be an injected instruction */}
+        {approval.untrusted_sources?.length > 0 && (
+          <div className={`text-sm mb-3 rounded-lg px-3 py-2 ${
+            isDarkMode ? 'bg-red-500/10 border border-red-500/30 text-red-300' : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            ⚠️ The agent asked for this after reading content from others
+            ({approval.untrusted_sources.map(formatToolName).join(', ')}).
+            Check the recipient and content carefully - text in emails or web pages can try to trick the agent.
+          </div>
+        )}
+
         {/* Exact arguments - the user must see what will be sent before approving */}
         <dl className="space-y-2 mb-4">
           {entries.length === 0 && (

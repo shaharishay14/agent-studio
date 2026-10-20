@@ -234,41 +234,25 @@ def with_retry(
 
 def sanitize_for_prompt(text: str, max_length: int = 10000) -> str:
     """
-    Sanitize user input to prevent prompt injection attacks.
+    Limits the length of text going into a prompt.
+
+    No character escaping: prompt injection is plain language ("ignore previous instructions..."),
+    so escaping quotes and newlines never stopped it, and it garbled normal text (literal \\n, \\").
+    Injection is handled by permissions instead (tool_policy.py): third-party tool output is marked
+    and tracked, and actions need the user's approval.
 
     Args:
-        text: Input text to sanitize
+        text: Input text
         max_length: Maximum allowed length
 
     Returns:
-        Sanitized text safe for inclusion in prompts
+        Text safe in size for inclusion in prompts
     """
     if not text:
         return ""
 
-    # Convert to string if not already
-    text = str(text)
-
-    # Escape special characters that could break out of context
-    text = text.replace("\\", "\\\\")
-    text = text.replace('"', '\\"')
-    text = text.replace("'", "\\'")
-
-    # Replace newlines with escaped versions to prevent prompt structure breaks
-    text = text.replace('\n', '\\n')
-    text = text.replace('\r', '\\r')
-    text = text.replace('\t', '\\t')
-
-    # Remove potential injection patterns
-    text = re.sub(r'<\|.*?\|>', '', text)  # Remove special tokens
-    text = re.sub(r'\{\{.*?\}\}', '', text)  # Remove template injections
-    text = re.sub(r'system:', 'system\\:', text)  # Escape role markers
-    text = re.sub(r'user:', 'user\\:', text)
-    text = re.sub(r'assistant:', 'assistant\\:', text)
-
-    # Limit length to prevent resource exhaustion
-    return text[:max_length]
-
+    # Null bytes can break downstream APIs; everything else is kept as written
+    return str(text).replace('\x00', '')[:max_length]
 
 def sanitize_file_path(file_path: str) -> str:
     """
@@ -1677,7 +1661,7 @@ RESPONSE FORMAT:
             # ============================================================
 
             # PERMISSIONS: every tool call goes through the policy gate (read / approve / deny)
-            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback))
+            tools = guard_function_tools(tools, PermissionGate(self.user, agent_model, callback, chat_history))
 
             composio_agent = ComposioAgent(
                 name=agent_model.name,
@@ -1962,7 +1946,7 @@ RESPONSE FORMAT:
             })
 
         if tool_result.get('success'):
-            return cap_tool_result(json.dumps(tool_result['data']))
+            return gate.record_output(function_name, cap_tool_result(json.dumps(tool_result['data'])))
         return cap_tool_result(json.dumps({'error': tool_result.get('error', 'Unknown error')}))
 
     async def compact_chat_history(self, agent_id, older_messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -2132,7 +2116,7 @@ RESPONSE FORMAT:
 
             print(f"🔧 Chat with {len(agent_tools_functions)} agent tools enabled")
 
-            gate = PermissionGate(self.user, agent_model, callback)
+            gate = PermissionGate(self.user, agent_model, callback, chat_history)
 
             # === AGENT LOOP ===
             # Keep calling the model WITH tools until it answers in text,
