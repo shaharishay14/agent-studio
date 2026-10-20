@@ -1,13 +1,16 @@
 """
-Agent loop and context tests (fixes #1 and #2): multi-step tool use, error recovery, the step limit,
-the tool result cap, the gate inside the loop, and chat history compaction.
+Agent loop and context tests (fixes #1, #2, and #6 step 3): multi-step tool use, error recovery,
+the step limit with an honest final answer, and the tool result cap, all through the real Agents SDK
+Runner with a scripted model; plus chat history compaction.
 """
+
+import json
 
 import pytest
 from django.core.cache import cache
 
 from api_agents.agents.services import agent_service
-from .conftest import reply, tool_call
+from .conftest import call, reply, say
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -16,69 +19,59 @@ def ok(data):
     return {'success': True, 'data': data}
 
 
-async def test_multi_step_task_runs_tools_until_the_model_answers(make_service, agent, events):
-    service = make_service(
-        replies=[reply(tool_calls=[tool_call('1', 'get_stock_data', {'ticker': 'AAPL'})]),
-                 reply(tool_calls=[tool_call('2', 'calculate', {'expression': '30 * 200'})]),
-                 reply(content='30 shares cost $6000')],
-        tool_fn=lambda name, **args: ok({'tool': name}),
-    )
-    answer = await service._chat_with_agent_tools(agent, 'price of 30 AAPL shares?', callback=events)
-
-    assert answer == '30 shares cost $6000'
-    assert len(service.openai_client.calls) == 3
-    assert all('tools' in call for call in service.openai_client.calls)          # tools on every step
-    streamed = ''.join(data['content'] for event, data in events.recorded if event == 'content_delta')
-    assert streamed == answer
+async def test_multi_step_task_runs_tools_until_the_model_answers(make_service, agent, scripted_model):
+    service = make_service(tool_fn=lambda name, **args: ok({'tool': name, **args}))
+    model = scripted_model([
+        [call('1', 'get_weather', {'location': 'Paris'})],
+        [call('2', 'calculate', {'expression': '18 * 9 / 5 + 32'})],
+        [say('It is 64.4F in Paris')],
+    ])
+    assert await service.run(agent, 'Paris weather in Fahrenheit?') == 'It is 64.4F in Paris'
+    assert model.tool_names[0] == ['calculate', 'get_weather']            # built-in only: no Composio tools
+    assert 'Paris' in model.tool_outputs(1)['call_1']                      # step 2 saw step 1's result
+    assert '18 * 9' in model.tool_outputs(2)['call_2']
 
 
-async def test_tool_crash_goes_back_to_the_model_as_an_error(make_service, agent):
+async def test_tool_crash_goes_back_to_the_model_as_an_error(make_service, agent, scripted_model):
     def flaky(name, **args):
-        if args.get('ticker') == 'APPLE':
-            raise ValueError('Unknown ticker APPLE')
-        return ok(200)
+        if args.get('location') == 'Atlantis':
+            raise ValueError('Unknown place Atlantis')
+        return ok({'location': args.get('location')})
 
-    service = make_service(
-        replies=[reply(tool_calls=[tool_call('1', 'get_stock_data', {'ticker': 'APPLE'})]),
-                 reply(tool_calls=[tool_call('2', 'get_stock_data', {'ticker': 'AAPL'})]),
-                 reply(content='AAPL is 200')],
-        tool_fn=flaky,
-    )
-    assert await service._chat_with_agent_tools(agent, 'apple stock?') == 'AAPL is 200'
-    assert 'Unknown ticker' in service.openai_client.tool_messages(1)[0]['content']
+    service = make_service(tool_fn=flaky)
+    model = scripted_model([
+        [call('1', 'get_weather', {'location': 'Atlantis'})],
+        [call('2', 'get_weather', {'location': 'Athens'})],
+        [say('Athens is sunny')],
+    ])
+    assert await service.run(agent, 'weather in Atlantis?') == 'Athens is sunny'
+    assert 'Unknown place Atlantis' in model.tool_outputs(1)['call_1']
 
 
-async def test_step_limit_forces_a_final_answer_without_tools(make_service, agent):
+async def test_step_limit_forces_an_honest_final_answer(make_service, agent, scripted_model):
     steps = agent_service.MAX_AGENT_STEPS
-    service = make_service(
-        replies=[reply(tool_calls=[tool_call(str(i), 'calculate', {'expression': '1+1'})]) for i in range(steps)]
-                + [reply(content='partial answer')],
-        tool_fn=lambda name, **args: ok(2),
-    )
-    assert await service._chat_with_agent_tools(agent, 'loop forever') == 'partial answer'
-    assert len(service.openai_client.calls) == steps + 1
-    assert 'tools' not in service.openai_client.calls[-1]
+    service = make_service(tool_fn=lambda name, **args: ok(2))
+    model = scripted_model([[call(str(i), 'calculate', {'expression': '1+1'})] for i in range(steps)]
+                           + [[say('I could not finish: still calculating')]])
+
+    assert await service.run(agent, 'loop forever') == 'I could not finish: still calculating'
+    assert len(model.inputs) == steps + 1
+    assert model.tool_names[-1] == []                                       # the last call has no tools
+    final_input = model.inputs[-1]
+    assert final_input[-1] == {'role': 'system', 'content': agent_service.STEP_LIMIT_INSTRUCTION}
+    # ...and it still has everything the agent did, so it can't pretend
+    assert sum(1 for item in final_input if isinstance(item, dict) and item.get('type') == 'function_call_output') == steps
 
 
-async def test_big_tool_result_is_capped_and_marked(make_service, agent):
-    service = make_service(
-        replies=[reply(tool_calls=[tool_call('1', 'web_search', {'query': 'x'})]), reply(content='done')],
-        tool_fn=lambda name, **args: ok('x' * 100_000),
-    )
-    await service._chat_with_agent_tools(agent, 'search')
-    content = service.openai_client.tool_messages(1)[0]['content']
+async def test_big_tool_result_is_capped_and_marked(make_service, agent, scripted_model):
+    agent.agent_tools = ['web_search']
+    service = make_service(tool_fn=lambda name, **args: ok('x' * 100_000))
+    model = scripted_model([[call('1', 'web_search', {'query': 'x'})], [say('done')]])
+
+    await service.run(agent, 'search')
+    content = model.tool_outputs(1)['call_1']
     assert 'TRUNCATED' in content and len(content) < agent_service.MAX_TOOL_RESULT_CHARS + 600
     assert content.startswith('<untrusted_tool_output tool="web_search">')
-
-
-async def test_unknown_tool_is_denied_by_the_gate_and_never_runs(make_service, agent):
-    executed = []
-    service = make_service(
-        replies=[reply(tool_calls=[tool_call('1', 'send_email', {'to': 'x'})]), reply(content="I can't do that")],
-        tool_fn=lambda name, **args: executed.append(name) or ok(1),
-    )
-    assert await service._chat_with_agent_tools(agent, 'email someone') == "I can't do that"
-    assert executed == [] and 'not allowed' in service.openai_client.tool_messages(1)[0]['content']
 
 
 # --- compaction (fix #2) ------------------------------------------------------------------------

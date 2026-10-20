@@ -10,10 +10,18 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from agents import set_tracing_disabled
+from agents.items import ModelResponse
+from agents.models.interface import Model
+from agents.usage import Usage
+from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 
 from api_agents.models import Agent, User
 from api_agents.agents.services import tool_policy
+from api_agents.agents.services import agent_service as agent_service_module
 from api_agents.agents.services.agent_service import AgentService
+
+set_tracing_disabled(True)
 
 
 class FakeOpenAI:
@@ -39,6 +47,54 @@ def reply(content=None, tool_calls=None):
 
 def tool_call(call_id, name, arguments):
     return SimpleNamespace(id=call_id, function=SimpleNamespace(name=name, arguments=json.dumps(arguments)))
+
+
+class ScriptedModel(Model):
+    """Stands in for the LLM inside the real Agents SDK Runner: plays back one list of output items
+    per turn, and records the input and tool names the Runner sent each time."""
+
+    def __init__(self, turns):
+        self.turns = list(turns)
+        self.inputs = []
+        self.tool_names = []
+
+    async def get_response(self, system_instructions, input, model_settings, tools, output_schema, handoffs,
+                           tracing, **kwargs):
+        self.inputs.append(input)
+        self.tool_names.append(sorted(tool.name for tool in tools))
+        return ModelResponse(output=self.turns.pop(0), usage=Usage(), response_id=None)
+
+    def stream_response(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def tool_outputs(self, turn):
+        """Tool results the Runner sent to the model at the start of a turn, by call id."""
+        return {item['call_id']: item['output'] for item in self.inputs[turn]
+                if isinstance(item, dict) and item.get('type') == 'function_call_output'}
+
+
+def call(call_id, name, arguments):
+    """A tool call made by the scripted model."""
+    return ResponseFunctionToolCall(id=f'fc_{call_id}', call_id=f'call_{call_id}', name=name,
+                                    arguments=json.dumps(arguments), type='function_call', status='completed')
+
+
+def say(text):
+    """A final text answer from the scripted model."""
+    return ResponseOutputMessage(id='msg_1', role='assistant', status='completed', type='message',
+                                 content=[ResponseOutputText(text=text, type='output_text', annotations=[])])
+
+
+@pytest.fixture
+def scripted_model(monkeypatch):
+    """Makes the Runner path use a ScriptedModel with the given turns, and returns it."""
+    def use(turns):
+        model = ScriptedModel(turns)
+        strategy = SimpleNamespace(select_model=lambda **kw: model, get_selection_reasoning=lambda **kw: '',
+                                   _calculate_complexity_score=lambda *a: 0)
+        monkeypatch.setattr(agent_service_module, 'get_model_selection_strategy', lambda: strategy)
+        return model
+    return use
 
 
 @pytest.fixture

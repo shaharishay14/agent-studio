@@ -17,6 +17,7 @@ from pathlib import Path
 from composio import Composio
 from composio_openai_agents import OpenAIAgentsProvider
 from agents import Agent as ComposioAgent, FunctionTool, Runner
+from agents.exceptions import MaxTurnsExceeded
 from openai import AsyncOpenAI  # ✅ Changed from OpenAI to AsyncOpenAI
 from django.conf import settings
 from django.core.cache import cache
@@ -26,8 +27,6 @@ from .agent_tools_service import AgentToolsService
 from .context_injection_manager import get_context_manager
 from .tool_dependency_engine import get_tool_dependency_engine
 from .model_selection_strategy import get_model_selection_strategy
-from .intent_resolution_engine import get_intent_engine
-from .pre_execution_validator import get_validator
 from .execution_logger import get_execution_logger
 from .tool_policy import PermissionGate, guard_function_tools
 from ...shared.utils import convert_image_to_base64
@@ -37,6 +36,11 @@ logger = logging.getLogger(__name__)
 
 # Max model calls with tools per user message before we force a final answer
 MAX_AGENT_STEPS = 8
+STEP_LIMIT_INSTRUCTION = (
+    "You have reached the maximum number of tool steps. "
+    "Answer the user now using only the information gathered so far. "
+    "If the task is not complete, say what is missing."
+)
 
 # Max characters of a single tool result that go into the model's context (~1k tokens)
 MAX_TOOL_RESULT_CHARS = 4000
@@ -936,78 +940,6 @@ class AgentService:
         if expired_tool_keys or expired_conn_keys:
             logger.info(f"🧹 Cleaned up {len(expired_tool_keys)} expired tool cache entries and {len(expired_conn_keys)} expired connection cache entries")
 
-    def _is_ambiguous_request(self, message: str) -> bool:
-        """
-        Check if request needs intent resolution or can skip it for performance.
-
-        Intent resolution adds 1-2s overhead. Skip for:
-        - Explicit multi-tool requests ("send email AND create doc")
-        - Clear single-action requests with specific tool keywords
-        - Structured requests with clear parameters
-
-        Require for:
-        - Vague pronouns ("send it", "update that file")
-        - Ambiguous references ("the document", "the email")
-        - Complex multi-step requests without clear structure
-
-        Args:
-            message: User's message text
-
-        Returns:
-            True if needs intent resolution, False to skip for performance
-
-        Performance:
-            - Skipping saves 1-2s for ~70% of requests
-            - False positives (skipping when needed) are safe - LLM can still handle it
-        """
-        message_lower = message.lower()
-
-        # REQUIRE intent resolution for vague pronouns
-        vague_pronouns = ['it', 'that', 'this', 'the file', 'the document', 'the email', 'the sheet']
-        if any(pronoun in message_lower for pronoun in vague_pronouns):
-            logger.info("🔍 Intent resolution required: vague pronouns detected")
-            return True
-
-        # SKIP for explicit tool keywords (user knows what they want)
-        explicit_tools = [
-            'send email', 'create email', 'gmail',
-            'create doc', 'create document', 'google doc',
-            'create sheet', 'google sheet',
-            'calendar', 'schedule', 'create event',
-            'download file', 'search drive', 'google drive',
-            'send message', 'slack', 'post to slack'
-        ]
-        if any(tool_phrase in message_lower for tool_phrase in explicit_tools):
-            logger.info("⚡ Skipping intent resolution: explicit tool request")
-            return False
-
-        # SKIP for clear multi-tool structures
-        multi_tool_indicators = [' and ', ' then ', ' also ', ', and ']
-        if any(indicator in message_lower for indicator in multi_tool_indicators):
-            # Check if it's a structured list (e.g., "analyze AAPL and send via email and create doc")
-            words = message_lower.split()
-            if len(words) > 8:  # Multi-tool requests are usually longer
-                logger.info("⚡ Skipping intent resolution: structured multi-tool request")
-                return False
-
-        # SKIP for requests with specific parameters (shows clear intent)
-        # Examples: "send email to john@example.com", "create doc titled 'Report'"
-        has_parameters = any([
-            '@' in message,  # Email addresses
-            'titled' in message_lower,
-            'called' in message_lower,
-            'named' in message_lower,
-            'to:' in message_lower,
-            'subject:' in message_lower,
-        ])
-        if has_parameters:
-            logger.info("⚡ Skipping intent resolution: specific parameters provided")
-            return False
-
-        # DEFAULT: Use intent resolution for ambiguous cases
-        logger.info("🔍 Intent resolution required: ambiguous request")
-        return True
-
     def _is_tool_execution_request(self, message: str) -> bool:
         """
         Check if this is primarily a tool execution task vs complex reasoning task.
@@ -1174,55 +1106,6 @@ class AgentService:
 
         return all_tool_slugs
 
-    async def chat_with_phase2_optimization(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None) -> str:
-        """
-        🚀 PHASE 2.5 HYBRID OPTIMIZED CHAT METHOD
-
-        This method uses Phase 2.5 hybrid optimization:
-        - Loads TOP 10 most commonly used tools per app (not all 500+ tools!)
-        - Eliminates separate tool selection AI call (saves 2-3 seconds)
-        - Keeps token usage low (~100-150 tools vs 800+)
-        - LLM natively selects from these curated tools via function calling
-        - If needed tools aren't in TOP 10, system falls back to select_tools_for_prompt()
-
-        Previous Phase 2: Loaded ALL tools → 500+ GitHub tools = token explosion ❌
-        Phase 2.5: Loads TOP 10 per app → 10-20 tools total = efficient ✅
-
-        Performance improvement: Saves 2-3 seconds + reduces token usage by 80-90%
-
-        Args:
-            agent_model: Agent model instance
-            message: User message
-            chat_history: Previous chat messages
-            callback: Optional async callback function for streaming updates
-            file_attachments: List of file attachment dictionaries with file paths
-
-        Returns:
-            Agent response string
-
-        Example:
-            response = await agent_service.chat_with_phase2_optimization(
-                agent_model=agent,
-                message="Post image to Twitter and send email",
-                chat_history=[],
-                callback=None
-            )
-            # Loads: TOP 10 Twitter tools + TOP 10 Gmail tools = 20 tools total
-        """
-        logger.info(f"🚀 Starting Phase 2.5 optimized chat (TOP 10 tools per app)")
-
-        return await self._chat_with_composio(
-            agent_model=agent_model,
-            message=message,
-            specific_tools_slugs=None,  # Not needed - will load all tools internally
-            chat_history=chat_history,
-            callback=callback,
-            file_attachments=file_attachments,
-            skip_intent_validation=False,
-            use_phase2_optimization=True  # 🚀 Enable Phase 2 optimization
-        )
-
-    @with_retry(max_retries=2, backoff_factor=2, initial_delay=1.0)
     async def run(self, agent_model, message: str, chat_history: List[Dict[str, Any]] = None, callback=None,
                   file_attachments: List[Dict] = None, allow_connected_apps: bool = True) -> str:
         """
@@ -1240,19 +1123,18 @@ class AgentService:
             allow_connected_apps: False for senders who must not use the owner's accounts (Telegram strangers)
         """
         use_connected_apps = bool(allow_connected_apps and agent_model.app_connections and self.composio_client)
+        builtin_tools = self._builtin_function_tools(agent_model)
 
-        if use_connected_apps:
+        if use_connected_apps or builtin_tools:
             return await self._chat_with_composio(
                 agent_model=agent_model,
                 message=message,
                 chat_history=chat_history,
                 callback=callback,
                 file_attachments=file_attachments,
-                use_phase2_optimization=True,
-                extra_tools=self._builtin_function_tools(agent_model),
+                use_phase2_optimization=use_connected_apps,  # load top-10 Composio tools only when allowed
+                extra_tools=builtin_tools,
             )
-        if agent_model.agent_tools:
-            return await self._chat_with_agent_tools(agent_model, message, chat_history, callback, file_attachments)
         return await self._chat_without_tools(agent_model, message, chat_history, callback)
 
     def _builtin_function_tools(self, agent_model) -> List[FunctionTool]:
@@ -1283,6 +1165,7 @@ class AgentService:
             for definition in get_openai_functions_for_tools(agent_model.agent_tools or [])
         ]
 
+    @with_retry(max_retries=2, backoff_factor=2, initial_delay=1.0)
     async def _execute_agent_with_retry(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict], timeout: float = 180.0):
         """
         Execute Composio agent with automatic retry on transient failures.
@@ -1302,9 +1185,28 @@ class AgentService:
             Exception: On final retry failure
         """
         return await asyncio.wait_for(
-            runner.run(agent, chat_history),
+            self._run_with_step_limit(runner, agent, chat_history),
             timeout=timeout
         )
+
+    async def _run_with_step_limit(self, runner: Runner, agent: ComposioAgent, chat_history: List[Dict]):
+        """
+        Runs the agent loop for at most MAX_AGENT_STEPS model calls. At the limit, the model gets one
+        more call without tools, with everything it did so far, and must answer with what it has.
+        Without this, the SDK's MaxTurnsExceeded fell through to a no-tools chat with no memory
+        of the steps taken, which could claim actions that never happened.
+        """
+        try:
+            return await runner.run(agent, chat_history, max_turns=MAX_AGENT_STEPS)
+        except MaxTurnsExceeded as e:
+            if e.run_data is None:
+                raise
+            logger.warning(f"⚠️ Agent hit step limit ({MAX_AGENT_STEPS}), forcing final answer")
+            run_input = e.run_data.input
+            history = list(run_input) if isinstance(run_input, list) else [{'role': 'user', 'content': run_input}]
+            history += [item.to_input_item() for item in e.run_data.new_items]
+            history.append({'role': 'system', 'content': STEP_LIMIT_INSTRUCTION})
+            return await runner.run(agent.clone(tools=[]), history, max_turns=1)
 
     async def _chat_without_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None) -> str:
         """
@@ -1396,7 +1298,7 @@ class AgentService:
             return f"Error: {safe_error}"
 
     @retry_with_backoff(max_retries=2, initial_delay=1.0, max_delay=5.0, ttl_seconds=45)
-    async def _chat_with_composio(self, agent_model, message: str, specific_tools_slugs: List[str] = None, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, skip_intent_validation: bool = False, use_phase2_optimization: bool = False, extra_tools: List[Any] = None) -> str:
+    async def _chat_with_composio(self, agent_model, message: str, specific_tools_slugs: List[str] = None, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None, use_phase2_optimization: bool = False, extra_tools: List[Any] = None) -> str:
         """
         Runs the full agent execution with a specific set of tools and chat history.
 
@@ -1417,7 +1319,6 @@ class AgentService:
             chat_history: Previous chat messages
             callback: Optional async callback function for streaming updates
             file_attachments: List of file attachment dictionaries with file paths
-            skip_intent_validation: If True, skips intent resolution and validation (for task queue)
             use_phase2_optimization: If True, loads ALL tools for connected apps instead of pre-selected slugs
                                     (PHASE 2 OPTIMIZATION: eliminates 2-3s select_tools_for_prompt() overhead)
         """
@@ -1451,57 +1352,10 @@ class AgentService:
                 chat_history=chat_history
             )
 
-            # ============================================================
-            # PHASE 2: INTENT RESOLUTION
-            # ============================================================
-
-            # Skip Intent Resolution and Validation for task queue execution
-            # (we already know the platform and action from task parsing)
-            intent_resolution = None  # Initialize to None for skip cases
-
-            # PERFORMANCE: Conditional intent resolution (saves 1-2s for 70% of requests)
-            if not skip_intent_validation and self._is_ambiguous_request(message):
-                # Resolve intent for vague language
-                intent_engine = get_intent_engine()
-                intent_resolution = intent_engine.resolve_intent(
-                    user_message=message,
-                    chat_history=chat_history,
-                    connected_apps=connected_apps,
-                    available_files=file_attachments,
-                    agent_tools=agent_tools_list
-                )
-
-                execution_logger.log_intent_resolution(intent_resolution)
-                print(f"🧠 Intent Resolution: {intent_resolution.reasoning} (Confidence: {intent_resolution.confidence}%)")
-
-                # ============================================================
-                # PHASE 3: PRE-EXECUTION VALIDATION
-                # ============================================================
-
-                # Validate requirements before execution
-                validator = get_validator()
-                validation_result = validator.validate(
-                    intent=intent_resolution,
-                    available_files=file_attachments or [],
-                    connected_apps=connected_apps,
-                    agent_tools=agent_tools_list,
-                    chat_history=chat_history or [],
-                    user_message=message
-                )
-
-                execution_logger.log_validation(validation_result)
-                print(f"✅ Validation: {validation_result.validation_summary}")
-
-                # If validation failed with blocking issues, inform user
-                if not validation_result.passed:
-                    error_message = f"❌ Cannot execute: {validation_result.blocking_issues[0]}"
-                    execution_logger.log_execution_error(error_message)
-                    if callback:
-                        await callback('error', {'error': error_message})
-                    return error_message
-            elif not skip_intent_validation:
-                # Skipped intent resolution for performance - explicit request detected
-                print(f"⚡ PERFORMANCE: Skipped intent resolution for explicit request")
+            # Intent guessing and pre-execution validation were removed: their keyword rules labeled most
+            # messages as "post" and refused normal requests ("summarize my inbox" -> "TWITTER is not
+            # connected"). The model asks when a request is unclear; the permission gate guards actions.
+            intent_resolution = None
 
             # ============================================================
             # PHASE 4: TOOL LOADING
@@ -1541,7 +1395,7 @@ class AgentService:
                 except Exception as e:
                     print(f"❌ ERROR loading curated tools (Phase 2.5): {type(e).__name__}: {str(e)}")
                     tools = []
-            else:
+            elif specific_tools_slugs:
                 # PHASE 1: Use pre-selected tools (original flow)
                 print(f"🔍 DEBUG: Attempting to load tools...")
                 print(f"  - Entity ID: {entity_id}")
@@ -1561,6 +1415,9 @@ class AgentService:
                 except Exception as e:
                     print(f"❌ ERROR loading tools: {type(e).__name__}: {str(e)}")
                     tools = []
+            else:
+                # Connected apps not used for this run (none, or not allowed): built-in tools only
+                tools = []
 
             # Built-in tools (weather, calculator...) run in the same Runner, behind the same gate
             if extra_tools:
@@ -1578,22 +1435,13 @@ class AgentService:
                 print(f"    3. Invalid tool slugs")
                 execution_logger.log_execution_error(error_msg)
 
-                # For task queue execution, raise exception instead of falling back
-                if skip_intent_validation:
-                    raise Exception(f"Tool loading failed: {specific_tools_slugs}")
-
                 # For regular execution, fall back to chat without tools
                 return await self._chat_without_tools(agent_model, message, chat_history, callback)
 
-            # Log tool selection
-            if use_phase2_optimization:
-                tool_reasoning = f"Phase 2: Loaded ALL {len(tools)} tools for {len(agent_model.app_connections)} connected apps (LLM will select via function calling)"
-                # Log all tool names for debugging
-                all_tool_names = [tool.name if hasattr(tool, 'name') else str(tool)[:30] for tool in tools]
-                execution_logger.log_tool_selection(all_tool_names[:50], tool_reasoning)  # Log first 50 for brevity
-            else:
-                tool_reasoning = f"Phase 1: Selected {len(specific_tools_slugs)} tools based on user prompt and intent resolution"
-                execution_logger.log_tool_selection(specific_tools_slugs, tool_reasoning)
+            # Log the tools offered (the model picks among them via function calling)
+            all_tool_names = [tool.name if hasattr(tool, 'name') else str(tool)[:30] for tool in tools]
+            tool_reasoning = f"{len(tools)} tools offered (connected apps used: {use_phase2_optimization})"
+            execution_logger.log_tool_selection(all_tool_names[:50], tool_reasoning)  # Log first 50 for brevity
 
             # ============================================================
             # PHASE 5: CONTEXT INJECTION (ENHANCED)
@@ -1678,20 +1526,6 @@ List the exact steps you will take:
                     chain_of_thought_protocol + "\n" +
                     injected_context
                 )
-
-            # For task queue execution, add strict tool-only instruction
-            if skip_intent_validation:
-                enhanced_instructions += "\n\n" + """
-TASK EXECUTION MODE:
-- Use the provided tools to complete this specific task
-- Execute the required action using the appropriate tool
-- Report success or failure briefly
-
-RESPONSE FORMAT:
-- Keep response under 50 words
-- Simply confirm completion: "Email sent successfully" or "Document created successfully"
-- Do not include the analysis content in your response
-"""
 
             # ============================================================
             # PHASE 7: DYNAMIC MODEL SELECTION
@@ -1972,47 +1806,6 @@ RESPONSE FORMAT:
                 await callback('error', {'error': safe_error})
             return await self._chat_without_tools(agent_model, message, chat_history, callback)
 
-    async def _run_agent_tool_call(self, tool_call, gate: PermissionGate, callback=None) -> str:
-        """
-        Executes one tool call from the model and returns the result as a JSON string.
-        Failures and policy denials are returned as {"error": ...} so the model can see them and recover.
-        """
-        function_name = tool_call.function.name
-        # SECURITY: Use safe JSON parsing to prevent malformed input attacks
-        function_args = parse_json_safely(tool_call.function.arguments, default={})
-
-        blocked = await gate.check(function_name, function_args)
-        if blocked:
-            return blocked
-
-        logger.info(f"🔨 Executing tool: {function_name}")
-
-        if callback:
-            await callback('tool_call_start', {
-                'tool': function_name,
-                'parameters': function_args
-            })
-
-        try:
-            tool_result = await sync_to_async(self.agent_tools_service.execute_tool)(
-                function_name,
-                **function_args
-            )
-        except Exception as e:
-            tool_result = {'success': False, 'error': mask_sensitive_data(str(e))}
-
-        if callback:
-            await callback('tool_call_result', {
-                'tool': function_name,
-                'success': tool_result.get('success', False),
-                'result': tool_result.get('data') if tool_result.get('success') else None,
-                'error': tool_result.get('error') if not tool_result.get('success') else None
-            })
-
-        if tool_result.get('success'):
-            return gate.record_output(function_name, cap_tool_result(json.dumps(tool_result['data'])))
-        return cap_tool_result(json.dumps({'error': tool_result.get('error', 'Unknown error')}))
-
     async def compact_chat_history(self, agent_id, older_messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
         Compacts messages older than the recent window into a rolling summary.
@@ -2073,176 +1866,6 @@ RESPONSE FORMAT:
             timeout=40  # asyncio timeout (outer)
         )
         return response.choices[0].message.content or previous_summary
-
-    async def _emit_content_words(self, content: str, callback) -> None:
-        """Sends the final answer to the UI word by word (same events as streaming)."""
-        for index, word in enumerate(re.findall(r'\S+\s*', content)):
-            await callback('content_delta', {'content': word, 'index': index})
-
-    async def _chat_with_agent_tools(self, agent_model, message: str, chat_history: List[Dict[str, str]] = None, callback=None, file_attachments: List[Dict] = None) -> str:
-        """
-        Runs chat with agent-specific tools (weather, calculator, etc.).
-        Uses OpenAI function calling to execute tools.
-
-        Args:
-            agent_model: Agent model instance
-            message: User message
-            chat_history: Previous chat messages
-            callback: Optional async callback function for streaming updates
-            file_attachments: Optional list of file attachment dictionaries
-        """
-        if not self.openai_client:
-            return "OpenAI client not configured"
-
-        try:
-            # Get OpenAI function definitions for enabled agent tools
-            agent_tools_functions = get_openai_functions_for_tools(agent_model.agent_tools)
-
-            if not agent_tools_functions:
-                # No agent tools enabled, fall back to basic chat
-                return await self._chat_without_tools(agent_model, message, chat_history, callback)
-
-            # === USE CONTEXT INJECTION MANAGER ===
-            # Add same context as Composio tools for consistency
-            context_manager = get_context_manager()
-            connected_apps = agent_model.app_connections if hasattr(agent_model, 'app_connections') else []
-            agent_tools_list = agent_model.agent_tools if hasattr(agent_model, 'agent_tools') else []
-
-            injected_context = context_manager.build_complete_context(
-                user=self.user,
-                agent_model=agent_model,
-                connected_apps=connected_apps,
-                agent_tools=agent_tools_list,
-                include_app_guidance=False,  # Don't include Composio app guidance for agent tools
-                include_agent_tools_guidance=True  # Include agent tools guidance
-            )
-
-            # Build enhanced prompt with context
-            enhanced_prompt = agent_model.prompt + "\n" + injected_context
-
-            # === ADD FILE CONTEXT TO MESSAGE ===
-            # If files are attached, add file information to the message
-            enhanced_message = message
-            if file_attachments:
-                # MEMORY OPTIMIZATION: Use StringIO for efficient string building
-                from io import StringIO
-                file_context_buffer = StringIO()
-                file_context_buffer.write("\n\n📎 **Attached Files:**\n")
-
-                for file_info in file_attachments:
-                    file_context_buffer.write(f"\n**{file_info['filename']}** ({file_info['mime_type']}, {file_info['size']} bytes)\n")
-                    file_context_buffer.write(f"  📍 Path: `{file_info['file_path']}`\n")
-
-                    # Add extracted text preview if available
-                    if file_info.get('extraction_status') == 'success' and file_info.get('extracted_text'):
-                        preview = file_info['extracted_text'][:800]  # First 800 chars
-                        file_context_buffer.write(f"  📝 Content Preview:\n```\n{preview}\n```\n")
-                        if len(file_info['extracted_text']) > 800:
-                            file_context_buffer.write(f"  _(Total: {len(file_info['extracted_text'])} characters)_\n")
-                    elif file_info.get('extraction_status') == 'not_applicable':
-                        file_context_buffer.write(f"  ℹ️  Binary file (image/video/audio)\n")
-
-                file_context = file_context_buffer.getvalue()
-                enhanced_message = message + file_context
-                print(f"📎 Added context for {len(file_attachments)} file(s) to agent tools prompt")
-            # ====================================
-
-            # Build messages with enhanced prompt and history
-            if chat_history:
-                messages = [{"role": "system", "content": enhanced_prompt}] + chat_history
-            else:
-                messages = [
-                    {"role": "system", "content": enhanced_prompt},
-                    {"role": "user", "content": enhanced_message}
-                ]
-
-            print(f"🔧 Chat with {len(agent_tools_functions)} agent tools enabled")
-
-            gate = PermissionGate(self.user, agent_model, callback, chat_history, message)
-
-            # === AGENT LOOP ===
-            # Keep calling the model WITH tools until it answers in text,
-            # or until we hit the step limit.
-            for step in range(1, MAX_AGENT_STEPS + 1):
-                logger.info(f"🔁 Agent step {step}/{MAX_AGENT_STEPS}")
-
-                response = await asyncio.wait_for(
-                    self.openai_client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=messages,
-                        tools=agent_tools_functions,
-                        tool_choice="auto",
-                        temperature=0.7,
-                        max_completion_tokens=1500,
-                        timeout=45  # OpenAI client timeout
-                    ),
-                    timeout=60  # asyncio timeout (outer)
-                )
-
-                response_message = response.choices[0].message
-                tool_calls = response_message.tool_calls
-
-                # No tool calls -> the model is done, this is the final answer
-                if not tool_calls:
-                    final_content = response_message.content or ""
-                    if callback:
-                        await self._emit_content_words(final_content, callback)
-                    return final_content
-
-                messages.append(response_message)
-
-                for tool_call in tool_calls:
-                    result_content = await self._run_agent_tool_call(tool_call, gate, callback)
-                    messages.append({
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": tool_call.function.name,
-                        "content": result_content
-                    })
-
-            # === STEP LIMIT REACHED ===
-            # Force a final text answer from what the agent has so far (no tools)
-            logger.warning(f"⚠️ Agent hit step limit ({MAX_AGENT_STEPS}), forcing final answer")
-            if callback:
-                await callback('status', {'status': 'responding', 'message': 'Generating response...'})
-
-            messages.append({
-                "role": "system",
-                "content": "You have reached the maximum number of tool steps. "
-                           "Answer the user now using only the information gathered so far. "
-                           "If the task is not complete, say what is missing."
-            })
-
-            final_response = await asyncio.wait_for(
-                self.openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages,
-                    temperature=0.7,
-                    max_completion_tokens=1500,
-                    timeout=45  # OpenAI client timeout
-                ),
-                timeout=60  # asyncio timeout (outer)
-            )
-            final_content = final_response.choices[0].message.content or ""
-            if callback:
-                await self._emit_content_words(final_content, callback)
-            return final_content
-
-        except asyncio.TimeoutError:
-            print("⏱️ Agent tools chat timed out after 60 seconds")
-            if callback:
-                await callback('error', {'error': 'Request timed out after 60 seconds'})
-            return "Sorry, the request took too long and timed out. Please try again with a simpler query."
-
-        except Exception as e:
-            # SECURITY: Mask sensitive data in error messages
-            safe_error = mask_sensitive_data(str(e))
-            logger.error(f"Error in agent tools chat: {safe_error}")
-            import traceback
-            traceback.print_exc()
-            if callback:
-                await callback('error', {'error': safe_error})
-            return f"Sorry, I encountered an error: {safe_error}"
 
     def _clean_markdown_formatting(self, text: str) -> str:
         """
