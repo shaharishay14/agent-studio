@@ -32,7 +32,8 @@ from ..serializers import (
     MessagingChannelSerializer, ConnectTelegramBotSerializer, DisconnectMessagingChannelSerializer,
     AppConnectionDisplaySerializer, UnifiedAgentCreateSerializer
 )
-from .services.agent_service import AgentService
+from .services.agent_service import AgentService, HISTORY_LOAD_LIMIT, RECENT_MESSAGES_VERBATIM
+from django.core.cache import cache
 from ..tools.composio_config import APP_SLUGS, APP_METADATA, TOP_SLUGS_BY_APP
 from ..agents.tools_config import AGENT_TOOLS, get_all_tool_names, is_valid_tool
 import traceback
@@ -1357,16 +1358,23 @@ class AgentViewSet(viewsets.ModelViewSet):
 
                 # 3. Build the rich chat history (for agent memory)
                 # For ephemeral mode: use empty history (stateless)
-                # For persistent mode: use last 10 messages from database (increased for better tool memory)
+                # For persistent mode: recent messages verbatim, older ones compacted into a summary
                 chat_history_formatted = []
+                older_history = []
 
                 if not is_ephemeral:
                     print("Building rich chat history from database...")
-                    chat_history_qs = ChatMessage.objects.filter(agent=agent).order_by('-created_at')[:10]
+                    chat_history_qs = ChatMessage.objects.filter(agent=agent).order_by('-created_at')[:HISTORY_LOAD_LIMIT]
                     chat_history = await sync_to_async(list)(chat_history_qs)
                     chat_history.reverse()  # Put in chronological order (oldest first)
 
-                    for msg in chat_history:
+                    # Older messages go to compaction as plain text (no images/file context)
+                    older_history = [
+                        {"role": msg.role, "content": msg.content, "created_at": msg.created_at}
+                        for msg in chat_history[:-RECENT_MESSAGES_VERBATIM]
+                    ]
+
+                    for msg in chat_history[-RECENT_MESSAGES_VERBATIM:]:
                         msg_content = msg.content
 
                         # Re-build the file context for *all* messages in history
@@ -1432,6 +1440,10 @@ class AgentViewSet(viewsets.ModelViewSet):
 
                 # 4. Initialize the agent service
                 agent_service = AgentService(request.user)
+
+                if older_history:
+                    compacted = await agent_service.compact_chat_history(agent.id, older_history)
+                    chat_history_formatted = compacted + chat_history_formatted
 
                 # 5. Dynamically select tools (with history and file attachment info)
                 # 🚀 PHASE 2.5 HYBRID OPTIMIZATION: Load TOP 10 tools per app (no separate tool selection)
@@ -1838,6 +1850,7 @@ class AgentViewSet(viewsets.ModelViewSet):
 
             # Delete all chat messages for this agent
             deleted_count, _ = ChatMessage.objects.filter(agent=agent).delete()
+            cache.delete(f"chat_summary:{agent.id}")  # Don't carry the old summary into the new chat
 
             print(f"✅ Chat history reset for agent {agent.name} (ID={agent.id}). Deleted {deleted_count} messages.")
 

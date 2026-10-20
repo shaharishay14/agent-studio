@@ -19,6 +19,7 @@ from composio_openai_agents import OpenAIAgentsProvider
 from agents import Agent as ComposioAgent, Runner
 from openai import AsyncOpenAI  # ✅ Changed from OpenAI to AsyncOpenAI
 from django.conf import settings
+from django.core.cache import cache
 from ...tools.composio_config import APP_SLUGS, TOP_SLUGS_BY_APP
 from ..tools_config import get_openai_functions_for_tools
 from .agent_tools_service import AgentToolsService
@@ -35,6 +36,14 @@ logger = logging.getLogger(__name__)
 
 # Max model calls with tools per user message before we force a final answer
 MAX_AGENT_STEPS = 8
+
+# Max characters of a single tool result that go into the model's context (~1k tokens)
+MAX_TOOL_RESULT_CHARS = 4000
+
+# Chat history compaction: newest messages stay word for word, older ones become a summary
+RECENT_MESSAGES_VERBATIM = 10
+COMPACT_BATCH_SIZE = 10  # update the summary once this many older messages pile up
+HISTORY_LOAD_LIMIT = RECENT_MESSAGES_VERBATIM + 2 * COMPACT_BATCH_SIZE
 
 
 # Retry mechanism with exponential backoff and TTL
@@ -457,6 +466,22 @@ def validate_api_keys(settings_obj) -> bool:
     # Log success with masked keys
     logger.info(f"API keys validated: OpenAI={mask_sensitive_data(openai_key)}, Composio={mask_sensitive_data(composio_key)}")
     return True
+
+
+def cap_tool_result(content: str, max_chars: int = MAX_TOOL_RESULT_CHARS) -> str:
+    """
+    Limits a tool result before it goes into the model's context.
+    Keeps the start and tells the model it was cut, so it can ask for less.
+    """
+    if len(content) <= max_chars:
+        return content
+
+    logger.warning(f"Tool result truncated from {len(content)} to {max_chars} chars")
+    return (
+        content[:max_chars]
+        + f"\n\n[TRUNCATED: showing first {max_chars} of {len(content)} characters. "
+        "If you need more, call the tool again with a narrower query or fewer results.]"
+    )
 
 
 def sanitize_chat_history(chat_history: List[Dict[str, str]], max_messages: int = 50) -> List[Dict[str, str]]:
@@ -1929,8 +1954,69 @@ RESPONSE FORMAT:
             })
 
         if tool_result.get('success'):
-            return json.dumps(tool_result['data'])
-        return json.dumps({'error': tool_result.get('error', 'Unknown error')})
+            return cap_tool_result(json.dumps(tool_result['data']))
+        return cap_tool_result(json.dumps({'error': tool_result.get('error', 'Unknown error')}))
+
+    async def compact_chat_history(self, agent_id, older_messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """
+        Compacts messages older than the recent window into a rolling summary.
+
+        Args:
+            agent_id: Agent the conversation belongs to (summary cache key)
+            older_messages: Oldest first, each {"role", "content", "created_at"} as plain text
+
+        Returns:
+            Messages to put before the recent window: [summary] + not-yet-summarized messages
+        """
+        if not older_messages:
+            return []
+
+        cache_key = f"chat_summary:{agent_id}"
+        state = await sync_to_async(cache.get)(cache_key) or {}
+        summary = state.get("summary", "")
+        summarized_until = state.get("until")
+
+        pending = [m for m in older_messages if not summarized_until or m["created_at"] > summarized_until]
+
+        if len(pending) >= COMPACT_BATCH_SIZE:
+            try:
+                summary = await self._summarize_messages(summary, pending)
+                await sync_to_async(cache.set)(
+                    cache_key, {"summary": summary, "until": pending[-1]["created_at"]}, timeout=None
+                )
+                pending = []
+            except Exception as e:
+                # Keep the old summary and send pending messages as-is; retry next turn
+                logger.warning(f"Chat history compaction failed: {mask_sensitive_data(str(e))}")
+
+        compacted = []
+        if summary:
+            # Role "user", not "system": the summary is built from user content, so it gets user-level trust
+            compacted.append({"role": "user", "content": f"[Summary of the earlier conversation, for context]\n{summary}"})
+        compacted += [{"role": m["role"], "content": m["content"]} for m in pending]
+        return compacted
+
+    async def _summarize_messages(self, previous_summary: str, messages: List[Dict[str, Any]]) -> str:
+        """Folds new messages into the existing summary with one short LLM call."""
+        transcript = "\n".join(f"{m['role']}: {m['content'][:2000]}" for m in messages)
+        prompt = (
+            "Update the summary of this conversation. Keep facts, names, decisions, user preferences "
+            "and open tasks. Drop small talk. Maximum 200 words.\n\n"
+            f"Current summary:\n{previous_summary or '(none)'}\n\n"
+            f"New messages:\n{transcript}"
+        )
+
+        response = await asyncio.wait_for(
+            self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_completion_tokens=400,
+                timeout=30  # OpenAI client timeout
+            ),
+            timeout=40  # asyncio timeout (outer)
+        )
+        return response.choices[0].message.content or previous_summary
 
     async def _emit_content_words(self, content: str, callback) -> None:
         """Sends the final answer to the UI word by word (same events as streaming)."""
