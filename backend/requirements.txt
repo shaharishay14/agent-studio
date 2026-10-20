@@ -8,6 +8,8 @@ dj-database-url>=2.1.0
 PyJWT>=2.8.0
 openai>=1.0.0
 composio==0.9.1
+# composio 0.9.1 only requires composio-client>=1.11.0, and newer clients removed modules it imports
+composio-client==1.11.0
 openai-agents==0.3.3
 composio-openai-agents==0.9.1
 python-dotenv>=1.0.0
