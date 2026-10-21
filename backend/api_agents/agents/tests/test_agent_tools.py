@@ -66,3 +66,42 @@ def test_result_counts_are_clamped_and_output_trimmed(tools):
 def test_execute_tool_errors_help_the_model(tools):
     assert 'get_weather' in tools.execute_tool('send_email')['error']
     assert 'city' in tools.execute_tool('get_weather', city='London')['error']
+
+
+def test_stock_data_includes_the_headquarters(tools):
+    ticker = MagicMock(info={'longName': 'Apple Inc.', 'city': 'Cupertino', 'country': 'United States', 'currency': 'USD'})
+    ticker.history.return_value.empty = False
+    ticker.history.return_value.__getitem__.return_value.iloc.__getitem__.return_value = 227.5
+    with patch('yfinance.Ticker', return_value=ticker):
+        data = tools.get_stock_data('aapl')['data']
+    assert (data['hq_city'], data['hq_country'], data['current_price']) == ('Cupertino', 'United States', 227.5)
+
+
+def geocoder(results_by_name):
+    def get(url, params=None, timeout=None):
+        response = MagicMock()
+        response.json.return_value = {'results': results_by_name.get(params['name'], [])}
+        return response
+    return get
+
+
+def place(name, admin1, country, population):
+    return {'name': name, 'admin1': admin1, 'country': country, 'country_code': country[:2].upper(),
+            'population': population, 'latitude': 0, 'longitude': 0}
+
+
+def test_geocode_prefers_the_main_city_in_the_given_country(tools):
+    walldorfs = [place('Walldorf', 'Thuringia', 'Germany', 2281), place('Walldorf', 'Baden-Wurttemberg', 'Germany', 14842)]
+    paris = [place('Paris', 'Texas', 'United States', 24782), place('Paris', 'Île-de-France', 'France', 2138551)]
+    tel_aviv = [place('Tel Aviv', 'Tel Aviv', 'Israel', 432892)]
+    with patch('api_agents.agents.services.agent_tools_service.requests.get',
+               side_effect=geocoder({'Walldorf': walldorfs, 'Paris': paris, 'Tel Aviv': tel_aviv})):
+        assert tools._geocode('Walldorf, Germany')['admin1'] == 'Baden-Wurttemberg'   # not the first, smaller match
+        assert tools._geocode('Paris')['country'] == 'France'
+        assert tools._geocode('Paris, Texas')['admin1'] == 'Texas'
+        assert tools._geocode('Tel Aviv-Yafo, Israel')['name'] == 'Tel Aviv'         # Yahoo's spelling
+        assert tools._geocode('Paris, Japan') is None
+
+    london = [place('London', 'Ontario', 'Canada', 383822), {**place('London', 'England', 'United Kingdom', 8961989), 'country_code': 'GB'}]
+    with patch('api_agents.agents.services.agent_tools_service.requests.get', side_effect=geocoder({'London': london})):
+        assert tools._geocode('London, UK')['country'] == 'United Kingdom'

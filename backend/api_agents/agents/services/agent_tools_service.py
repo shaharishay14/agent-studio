@@ -8,7 +8,7 @@ import ast
 import math
 import operator
 import requests
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 from django.conf import settings
 from bs4 import BeautifulSoup
 
@@ -144,6 +144,29 @@ class AgentToolsService:
             traceback.print_exc()
             return tool_error(f'{tool_name} failed unexpectedly.', 'Do not retry. Tell the user this tool is not working right now.')
 
+    def _geocode(self, location: str) -> Optional[Dict[str, Any]]:
+        """
+        Find the place the user most likely means. The geocoder's first match is often a small
+        namesake ("Walldorf" -> a village of 2,000), so search by city, keep matches in the
+        country/region if one was given ("Walldorf, Germany"), and take the most populated one.
+        """
+        city, *qualifiers = [part.strip() for part in location.split(',') if part.strip()] or ['']
+        # common short forms whose ISO code differs from the abbreviation
+        qualifiers = [{'uk': 'gb', 'usa': 'us', 'uae': 'ae'}.get(q.lower(), q.lower()) for q in qualifiers]
+        # "Tel Aviv-Yafo" is not found, "Tel Aviv" is
+        for name in dict.fromkeys([city, city.split('-')[0].strip()]):
+            response = requests.get('https://geocoding-api.open-meteo.com/v1/search',
+                                    params={'name': name, 'count': 10, 'language': 'en', 'format': 'json'},
+                                    timeout=10)
+            response.raise_for_status()
+            results = response.json().get('results') or []
+            matches = [r for r in results if all(
+                q in (r.get('country') or '').lower() or q in (r.get('admin1') or '').lower()
+                or q == (r.get('country_code') or '').lower() for q in qualifiers)]
+            if matches:
+                return max(matches, key=lambda r: r.get('population') or 0)
+        return None
+
     def get_weather(self, location: str) -> Dict[str, Any]:
         """
         Get current weather for a location using Open-Meteo API (free, no API key needed).
@@ -156,26 +179,13 @@ class AgentToolsService:
         """
         try:
             # Step 1: Geocode the location to get coordinates
-            geocode_url = 'https://geocoding-api.open-meteo.com/v1/search'
-            geocode_params = {
-                'name': location,
-                'count': 1,
-                'language': 'en',
-                'format': 'json'
-            }
-
-            geocode_response = requests.get(geocode_url, params=geocode_params, timeout=10)
-            geocode_response.raise_for_status()
-            geocode_data = geocode_response.json()
-
-            if not geocode_data.get('results'):
+            location_data = self._geocode(location)
+            if not location_data:
                 return tool_error(
                     f'Location "{location}" was not found.',
                     'Retry with just the city name in English (e.g. "Tel Aviv", not "TLV"). If it still fails, ask the user.'
                 )
 
-            # Get the first result
-            location_data = geocode_data['results'][0]
             latitude = location_data['latitude']
             longitude = location_data['longitude']
             location_name = location_data['name']
@@ -310,6 +320,8 @@ class AgentToolsService:
                 'data': {
                     'symbol': ticker.upper(),
                     'name': info.get('longName', ticker),
+                    'hq_city': info.get('city'),
+                    'hq_country': info.get('country'),
                     'current_price': round(current_price, 2),
                     'currency': info.get('currency', 'USD'),
                     'market_cap': info.get('marketCap'),

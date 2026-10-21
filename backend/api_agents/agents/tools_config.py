@@ -127,7 +127,9 @@ AGENT_TOOLS_OPENAI_FUNCTIONS = {
                 'Get the latest price and key metrics for ONE stock by its ticker symbol. '
                 'Use this for stock prices and company valuation questions. Call it once per ticker. '
                 'Does NOT return price change, volume, history or news; use web_search for those if available. '
-                'Returns {"symbol", "name", "current_price", "currency", "market_cap", "pe_ratio", "52_week_high", "52_week_low"}.'
+                'Returns {"symbol", "name", "hq_city", "hq_country", "current_price", "currency", "market_cap", "pe_ratio", '
+                '"52_week_high", "52_week_low"}. hq_city/hq_country are the company headquarters (null if unknown); '
+                'for weather where the company is based, call get_weather with "hq_city, hq_country".'
             ),
             'parameters': {
                 'type': 'object',
