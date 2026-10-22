@@ -21,7 +21,8 @@ const bubbleClass = (role: Message['role']) =>
     : 'self-start rounded-[20px_20px_20px_6px] border border-white/20 bg-night/35 text-white backdrop-blur-[12px]';
 
 interface ChatMessageProps {
-  message: Message;
+  // Only these fields are shown, so public-chat messages fit too
+  message: Pick<Message, 'role' | 'content' | 'created_at'>;
 }
 
 export const ChatMessage = ({ message }: ChatMessageProps) => {

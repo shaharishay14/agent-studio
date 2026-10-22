@@ -1,5 +1,7 @@
-import MessageBubble from './MessageBubble';
-import { StreamingMessageBubble } from './StreamingMessageBubble';
+import { useEffect, useRef } from 'react';
+
+import { Spinner } from '@/components/ui/spinner';
+import { ChatMessage, StreamingMessage } from '../../chat/components/ChatMessage';
 
 interface Message {
   id: string;
@@ -15,37 +17,36 @@ interface PublicChatMessagesProps {
   status?: string;
 }
 
-function PublicChatMessages({ 
-  messages, 
-  isStreamingResponse, 
-  currentStreamingContent,
-  status 
-}: PublicChatMessagesProps) {
+function PublicChatMessages({ messages, isStreamingResponse, currentStreamingContent, status }: PublicChatMessagesProps) {
+  const endRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message in view
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages.length, currentStreamingContent, status]);
+
   return (
-    <div className="space-y-8">
+    <div className="mx-auto flex w-full max-w-[820px] flex-col gap-4 px-4 py-8 sm:px-7" role="log" aria-label="Conversation">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <ChatMessage key={message.id} message={message} />
       ))}
-      
-      {/* Streaming message in progress */}
-      {isStreamingResponse && currentStreamingContent && (
-        <StreamingMessageBubble content={currentStreamingContent} />
-      )}
-      
-      {/* Status indicator when streaming */}
+
+      {isStreamingResponse && currentStreamingContent && <StreamingMessage content={currentStreamingContent} />}
+
+      {/* What the agent is doing right now (e.g. running a tool) */}
       {status && (
-        <div className="flex justify-center my-2">
-          <div style={{ borderColor: 'rgba(168, 85, 247, 0.3)' }} className="px-4 py-2 rounded-full text-sm bg-purple-500/20 text-purple-300 border">
-            <span className="inline-flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
-              {status}
-            </span>
-          </div>
-        </div>
+        <p
+          className="m-0 inline-flex items-center gap-2.5 self-start rounded-pill border border-white/20 bg-night/40 px-3.5 py-2 text-[13px] text-white/85 backdrop-blur-[12px]"
+          role="status"
+        >
+          <Spinner size={14} />
+          {status}
+        </p>
       )}
+
+      <div ref={endRef} />
     </div>
   );
 }
 
 export default PublicChatMessages;
-

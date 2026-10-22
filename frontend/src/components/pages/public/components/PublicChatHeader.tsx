@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+import { LogoMark } from '@/components/ui/logo';
+import { StatusDot } from '@/components/ui/status-dot';
+import { AgentAvatar } from '../../../sky/AgentAvatar';
 import type { Agent } from '../../chat/types';
 
 interface PublicChatHeaderProps {
@@ -7,55 +9,32 @@ interface PublicChatHeaderProps {
 
 function PublicChatHeader({ agent }: PublicChatHeaderProps) {
   return (
-    <div style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} className="relative border-b bg-transparent">
-      <div className="max-w-full mx-auto px-3 sm:px-6 py-3 sm:py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4 group">
-            {/* Agent Avatar with glow effect */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-green-600 rounded-xl sm:rounded-2xl blur-md sm:blur-lg opacity-40 group-hover:opacity-60 transition-opacity"></div>
-              <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform group-hover:scale-105 transition-transform duration-300 overflow-hidden">
-                <img 
-                  src={"/assets/agent.png"} 
-                  alt={agent.name} 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            </div>
-            
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-base sm:text-2xl font-bold bg-gradient-to-r from-white via-gray-100 to-white bg-clip-text text-transparent truncate">
-                  {agent.name}
-                </h1>
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50 flex-shrink-0"></div>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1 line-clamp-1">
-                {agent.prompt.substring(0, 80)}...
-              </p>
-            </div>
-          </div>
-          
-          {/* Created by badge with special design */}
-          <Link 
-            to={import.meta.env.VITE_FRONT_URL || '/'} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ borderColor: 'rgba(55, 65, 81, 0.5)' }}
-            className="group relative px-5 py-2.5 rounded-xl text-xs font-medium border-2 bg-gradient-to-br from-gray-800/50 to-gray-900/50 text-gray-300 hover:text-white transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-purple-500/20 hover:scale-105 [&:hover]:!border-[rgba(168,85,247,0.5)] flex-shrink-0 hidden sm:flex"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              <span className="text-gray-500 group-hover:text-purple-400 transition-colors">powered by</span>
-              <span className="font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Agent Studio</span>
-            </span>
-            {/* Hover glow effect */}
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/0 via-purple-600/10 to-pink-600/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </Link>
-        </div>
+    <header className="relative flex shrink-0 items-center gap-3 border-b border-white/15 px-4 py-3 sm:px-7">
+      {/* Glass on its own layer so it can blur the photo behind it */}
+      <span className="absolute inset-0 -z-10 bg-night/45 backdrop-blur-[20px] backdrop-saturate-[1.4]" aria-hidden="true" />
+      <AgentAvatar id={agent.id} avatar={agent.avatar_base64} size={40} />
+      <div className="min-w-0 flex-1">
+        <h1 className="m-0 truncate font-display text-lg leading-6 font-medium tracking-[-0.02em]">{agent.name}</h1>
+        <p className="m-0 flex items-center gap-1.5 text-[13px] text-white/72">
+          <StatusDot status="live" />
+          Online
+        </p>
       </div>
-    </div>
+      <a
+        href={import.meta.env.VITE_FRONT_URL || '/'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex shrink-0 items-center gap-2 rounded-pill border border-white/25 bg-white/8 py-1.5 pr-3.5 pl-1.5 text-xs text-white/80 no-underline transition-colors hover:border-white/50 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white"
+      >
+        <LogoMark size={22} />
+        <span>
+          <span className="hidden sm:inline">Made with </span>
+          <span className="font-semibold text-white">Agent Studio</span>
+        </span>
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    </header>
   );
 }
 
 export default PublicChatHeader;
-
