@@ -6,7 +6,7 @@ function ChatIframe() {
   const chatUrl = import.meta.env.VITE_SUPPORT_AGENT_URL;
 
   return (
-    <div className="flex-1 overflow-hidden relative flex flex-col chat-scrollbar">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       {isLoading && <ChatLoader />}
       <iframe 
         src={chatUrl}

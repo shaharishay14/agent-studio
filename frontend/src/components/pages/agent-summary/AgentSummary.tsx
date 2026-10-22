@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import useDarkModeStore from '../../../../store/darkmode.store';
+import { Link, useNavigate } from 'react-router-dom';
+import { Check, LayoutGrid, MessageSquare } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
+import { StatusDot } from '@/components/ui/status-dot';
+import { AgentAvatar } from '../../sky/AgentAvatar';
+import { StatusScreen } from '../../sky/StatusScreen';
 import type { Agent } from '../builder/types';
-import { SuccessIcon, SummaryTitle, AgentCard, ActionButtons } from './components';
 
 function AgentSummary() {
-  const { isDarkMode } = useDarkModeStore();
   const navigate = useNavigate();
   const [agentData, setAgentData] = useState<Agent | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     // Get agent data from sessionStorage
@@ -19,9 +22,6 @@ function AgentSummary() {
         setAgentData(data);
         // Clear from sessionStorage after reading
         sessionStorage.removeItem('newAgentData');
-        
-        // Trigger animation
-        setTimeout(() => setIsVisible(true), 100);
       } catch (error) {
         console.error('Error parsing agent data:', error);
         navigate('/builder');
@@ -39,51 +39,41 @@ function AgentSummary() {
   const { id, name, created_at, avatar_base64 } = agentData;
 
   return (
-    <div className={`min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden ${
-      isDarkMode
-        ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900'
-        : 'bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50'
-    }`}>
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl opacity-20 ${
-          isDarkMode ? 'bg-purple-600' : 'bg-purple-300'
-        } animate-blob`}></div>
-        <div className={`absolute top-40 right-10 w-72 h-72 rounded-full blur-3xl opacity-20 ${
-          isDarkMode ? 'bg-pink-600' : 'bg-pink-300'
-        } animate-blob animation-delay-2000`}></div>
-        <div className={`absolute -bottom-20 left-1/2 w-72 h-72 rounded-full blur-3xl opacity-20 ${
-          isDarkMode ? 'bg-indigo-600' : 'bg-indigo-300'
-        } animate-blob animation-delay-4000`}></div>
-      </div>
+    <StatusScreen className="gap-4">
+      <span className="grid size-12 place-items-center rounded-pill bg-white text-on-white shadow-[0_0_0_8px_rgba(255,255,255,0.1),0_0_50px_rgba(230,176,109,0.35)]" aria-hidden="true">
+        <Check className="size-6" strokeWidth={2} />
+      </span>
+      <h1 className="m-0 font-display text-[28px] leading-8 font-medium tracking-[-0.03em]">
+        Your agent is <em className="sky-serif">ready</em>
+      </h1>
 
-      {/* Main Card */}
-      <div className={`relative max-w-2xl w-full my-8 rounded-3xl shadow-2xl border backdrop-blur-sm transform transition-all duration-700 ${
-        isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
-      } ${
-        isDarkMode
-          ? 'bg-gray-900/90 border-gray-700/50'
-          : 'bg-white/90 border-gray-200'
-      }`}>
-        {/* Gradient border effect */}
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-3xl opacity-20 blur-sm"></div>
-        
-        {/* Content */}
-        <div className="relative z-10">
-          <SuccessIcon />
-          <SummaryTitle isDarkMode={isDarkMode} />
-          <AgentCard 
-            name={name}
-            avatar_base64={avatar_base64}
-            created_at={created_at}
-            isDarkMode={isDarkMode}
-          />
-          <ActionButtons agentId={id} />
+      <div className="flex w-full items-center gap-3.5 rounded-inner border border-white/15 bg-white/[0.05] p-4 text-left">
+        <AgentAvatar id={id} avatar={avatar_base64} size={52} />
+        <div className="min-w-0 flex-1">
+          <p className="m-0 truncate text-[17px] font-semibold">{name}</p>
+          <p className="m-0 flex items-center gap-1.5 text-[13px] text-white/72">
+            <StatusDot status="live" />
+            Ready to chat
+          </p>
+          <p className="m-0 text-[13px] text-white/60">
+            Created {new Date(created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="flex w-full flex-col gap-2.5 sm:flex-row">
+        <Link to={`/chat/${id}`} className={cn(buttonVariants({ variant: 'white' }), 'sm:flex-1')}>
+          <MessageSquare />
+          Start chatting
+        </Link>
+        <Link to="/agents" className={cn(buttonVariants({ variant: 'glass' }), 'sm:flex-1')}>
+          <LayoutGrid />
+          All agents
+        </Link>
+      </div>
+      <p className="m-0 text-[13px] text-white/60">You can change its settings any time from the chat.</p>
+    </StatusScreen>
   );
 }
 
 export default AgentSummary;
-

@@ -1,4 +1,5 @@
-import useDarkModeStore from '../../../../../store/darkmode.store';
+import { useEffect } from 'react';
+
 import ChatHeader from './ChatHeader';
 import ChatIframe from './ChatIframe';
 
@@ -6,16 +7,20 @@ interface ChatWindowProps {
   onClose: () => void;
 }
 
+// Support chat panel: full screen on phones, a floating night panel bottom-right on desktop
 function ChatWindow({ onClose }: ChatWindowProps) {
-  const { isDarkMode } = useDarkModeStore();
+  // Escape closes it
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <div
-      className={`fixed inset-0 md:inset-auto md:bottom-6 md:right-6 w-full h-full md:w-[1000px] md:h-[720px] md:rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden ${
-        isDarkMode
-          ? 'bg-gray-900 border-0 md:border border-gray-700'
-          : 'bg-white border-0 md:border border-gray-200'
-      }`}
+      role="dialog"
+      aria-label="Support chat"
+      className="fixed inset-0 z-50 flex animate-sky-in flex-col overflow-hidden bg-night-2 text-white md:inset-auto md:right-6 md:bottom-6 md:h-[min(720px,calc(100dvh-48px))] md:w-[min(560px,calc(100vw-48px))] md:rounded-card md:border md:border-white/20 md:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_80px_-20px_rgba(0,0,0,0.8)]"
     >
       <ChatHeader onClose={onClose} />
       <ChatIframe />
@@ -24,4 +29,3 @@ function ChatWindow({ onClose }: ChatWindowProps) {
 }
 
 export default ChatWindow;
-

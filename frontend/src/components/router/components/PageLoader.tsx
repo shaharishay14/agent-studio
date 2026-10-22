@@ -1,10 +1,12 @@
+import { Spinner } from '@/components/ui/spinner';
+
+// Shown while a lazy page loads
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+    <div className="grid min-h-dvh place-items-center bg-night">
+      <Spinner label="Loading" />
     </div>
   );
 }
 
 export default PageLoader;
-

@@ -428,3 +428,18 @@
 .sky-prose-ink td {
   border-color: rgba(10, 14, 20, 0.15);
 }
+
+/* Indeterminate progress bar: a white segment sliding across */
+.sky-progress {
+  width: 33%;
+  animation: sky-progress 1.6s ease-in-out infinite;
+}
+
+@keyframes sky-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
