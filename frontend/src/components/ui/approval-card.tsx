@@ -50,17 +50,17 @@ export function ApprovalCard({
   return (
     <div
       className={cn(
-        "sky-glass flex w-full max-w-[460px] flex-col gap-4 rounded-card p-[22px] transition-[border-color] duration-300",
+        "sky-glass flex w-full max-w-[460px] flex-col gap-4 rounded-card p-[18px] transition-[border-color] duration-300 sm:p-[22px]",
         done && "border-live/60",
         className
       )}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 font-semibold" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <span className="flex items-center gap-2 font-semibold whitespace-nowrap" aria-live="polite">
           <StatusDot status={status} />
           {title}
         </span>
-        {badge && <Badge>{badge}</Badge>}
+        {badge && <Badge className="shrink-0">{badge}</Badge>}
       </div>
       <div className="flex items-center gap-3">
         <IconCircle>{toolIcon}</IconCircle>

@@ -89,8 +89,9 @@ function NavigationMenuContent({
     <NavigationMenuPrimitive.Content
       data-slot="navigation-menu-content"
       className={cn(
+        // Solid night panel: it sits inside the glass nav (a nested backdrop blur can't see the page) and over the headline
         "top-0 left-0 w-full md:absolute md:w-auto",
-        "group-data-[viewport=false]/navigation-menu:top-full group-data-[viewport=false]/navigation-menu:mt-3 group-data-[viewport=false]/navigation-menu:rounded-3xl group-data-[viewport=false]/navigation-menu:sky-glass group-data-[viewport=false]/navigation-menu:p-2.5 group-data-[viewport=false]/navigation-menu:text-white group-data-[viewport=false]/navigation-menu:data-[state=open]:animate-sky-in",
+        "group-data-[viewport=false]/navigation-menu:top-full group-data-[viewport=false]/navigation-menu:mt-3 group-data-[viewport=false]/navigation-menu:rounded-3xl group-data-[viewport=false]/navigation-menu:border group-data-[viewport=false]/navigation-menu:border-white/25 group-data-[viewport=false]/navigation-menu:bg-night-2 group-data-[viewport=false]/navigation-menu:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]  group-data-[viewport=false]/navigation-menu:p-2.5 group-data-[viewport=false]/navigation-menu:text-white group-data-[viewport=false]/navigation-menu:data-[state=open]:animate-sky-in",
         className
       )}
       {...props}

@@ -2,29 +2,26 @@ import type { FAQItem } from '../types';
 
 export const faqData: FAQItem[] = [
   {
-    question: 'What is Agent Studio?',
+    question: 'What does YOLO mode do?',
     answer:
-      'Agent Studio is a platform that allows you to create AI agents quickly and easily. Whether you want to automate tasks, build chatbots, or create intelligent assistants, Agent Studio provides the tools you need.',
+      "You write one sentence and we pick the tools, files and prompt for you. You can change any of it later in the agent's settings.",
   },
   {
-    question: 'Do I need technical knowledge to use Agent Studio?',
+    question: 'Can my agent send email on its own?',
     answer:
-      'No! Agent Studio is designed to be user-friendly for everyone. With our YOLO mode, you can create agents using natural language. For advanced users, we also offer Manual mode for more control.',
+      'Only after you approve it. Sends, posts and deletes show you the tool, the reason and the exact details, and wait for Approve or Deny.',
   },
   {
-    question: 'What types of agents can I build?',
+    question: 'What can I connect?',
     answer:
-      'You can build various types of agents including research assistants, customer service bots, content creators, personal assistants, and more. The possibilities are endless!',
+      'Gmail, WhatsApp, Telegram and the other services listed under Integrations. You sign in once and can disconnect at any time.',
   },
   {
-    question: 'Is Agent Studio free to use?',
-    answer:
-      'Yes! During our early access period, Agent Studio is completely free. You get unlimited access to all features. Help us shape the future of Agent Studio!',
+    question: 'Can I put an agent on my website?',
+    answer: 'Yes. Every agent has a public chat link, a QR code and an embed snippet you paste into your page.',
   },
   {
-    question: 'How do I get started?',
-    answer:
-      'Simply sign up for a free account, describe the agent you want to build in plain language, and let our AI create it for you. You can then customize and deploy your agent.',
+    question: 'Is Agent Studio open source?',
+    answer: 'Yes. The code is on GitHub.',
   },
 ];
-

@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils"
 
-// Temporary logo mark (two nodes joined by a bar): white tile, dark glyph.
-export function LogoMark({ size = 30, className }: { size?: number; className?: string }) {
+// Temporary logo mark (two nodes joined by a bar): white tile, dark glyph. `tone` tints the tile.
+export function LogoMark({ size = 30, tone, className }: { size?: number; tone?: string; className?: string }) {
   return (
     <span
       className={cn("inline-grid shrink-0 place-items-center bg-white text-on-white", className)}
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.3) }}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.3), background: tone }}
       aria-hidden="true"
     >
       <svg viewBox="0 0 24 24" fill="currentColor" className="size-[56%]">

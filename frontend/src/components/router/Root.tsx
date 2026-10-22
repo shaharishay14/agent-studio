@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Nav from "../layout/Nav";
 import Chatbot from "../layout/Chatbot";
 import useDarkMode from "../shared/hooks/useDarkMode";
@@ -18,10 +18,13 @@ function Root() {
     useLastVisitedPath();
     // useRefreshToken(); // רענון אוטומטי של token
     useRoutePreloader(); // טעינה מוקדמת של נתיבים
+    const { pathname } = useLocation();
+    // The Sky landing draws its own nav over the hero photo
+    const isLanding = pathname === "/" || pathname === "/builder";
 
     return (
         <Layout>
-            <Nav />
+            {!isLanding && <Nav />}
             <Suspense fallback={<PageLoader />}>
                 <Outlet />
             </Suspense>

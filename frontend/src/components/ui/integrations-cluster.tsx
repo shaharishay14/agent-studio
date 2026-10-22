@@ -65,7 +65,7 @@ export function IntegrationsCluster({ tools, className }: { tools: string[]; cla
       <div className="flex justify-center gap-3 xl:gap-[18px]">
         {slot(2)}
         <Tile center>
-          <LogoMark size={64} className="max-xl:!size-10" />
+          <LogoMark size={64} className="max-xl:scale-[0.625]" />
         </Tile>
         {slot(3)}
       </div>
