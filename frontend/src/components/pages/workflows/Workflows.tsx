@@ -1,18 +1,21 @@
-import { WorkflowSidebar, WorkflowEmptyState, WorkflowBuilder, CreateWorkflowModal, DeleteWorkflowModal, AddAgentToWorkflowModal, RemoveAgentFromWorkflowModal, WorkflowSidebarToggleButton, LayoutWorkflow } from './components';
+import { PanelLeftOpen } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { WorkflowSidebar, WorkflowEmptyState, WorkflowBuilder, CreateWorkflowModal, DeleteWorkflowModal, AddAgentToWorkflowModal, RemoveAgentFromWorkflowModal } from './components';
 import { useActionsWorkflow } from './hooks';
-import useDarkModeStore from '../../../../store/darkmode.store';
 import useModalsStore from '../../../../store/modals.store';
-import { LoadingState, ErrorState } from '../../shared/components';
 import CreateTriggerModal from '../chat/components/modals/CreateTriggerModal';
 
+// Height under the 61px app top bar
+const fullHeight = 'h-[calc(100dvh-61px)]';
+
 function Workflows() {
-  const { isDarkMode } = useDarkModeStore();
   const { createTriggerModal, closeCreateTriggerModal } = useModalsStore();
   const {
     workflows,
     isLoading,
     isError,
-    error,
     refetch,
     selectedWorkflowId,
     isSidebarOpen,
@@ -24,24 +27,22 @@ function Workflows() {
     handleCloseSidebar,
   } = useActionsWorkflow();
 
-  // Loading state
   if (isLoading) {
     return (
-      <LayoutWorkflow isDarkMode={isDarkMode}>
-        <LoadingState message="Loading workflows..." />
-      </LayoutWorkflow>
+      <div className={`grid ${fullHeight} place-items-center bg-night`}>
+        <Spinner label="Loading workflows" />
+      </div>
     );
   }
 
-  // Error state
   if (isError) {
     return (
-      <LayoutWorkflow isDarkMode={isDarkMode}>
-        <ErrorState 
-          message={error?.message || 'Error loading workflows'}
-          onRetry={() => refetch()}
-        />
-      </LayoutWorkflow>
+      <div className={`flex ${fullHeight} flex-col items-center justify-center gap-4 bg-night p-8 text-center`} role="alert">
+        <p className="m-0 text-white/72">We couldn't load your workflows.</p>
+        <Button variant="glass" size="sm" onClick={() => refetch()}>
+          Try again
+        </Button>
+      </div>
     );
   }
 
@@ -51,15 +52,15 @@ function Workflows() {
       <DeleteWorkflowModal />
       <AddAgentToWorkflowModal />
       <RemoveAgentFromWorkflowModal />
-      
+
       {/* CreateTriggerModal for Workflows */}
       <CreateTriggerModal
         isOpen={createTriggerModal.isOpen && createTriggerModal.workflowId !== null}
         onClose={closeCreateTriggerModal}
         agentId={createTriggerModal.workflowId?.toString() || ''}
       />
-      
-      <LayoutWorkflow isDarkMode={isDarkMode}>
+
+      <div className={`relative flex ${fullHeight} bg-night`}>
         <WorkflowSidebar
           workflows={workflows}
           selectedWorkflowId={selectedWorkflowId}
@@ -70,25 +71,24 @@ function Workflows() {
           onClose={handleCloseSidebar}
           isOpen={isSidebarOpen}
         />
-        
-        <div className={`flex-1 flex flex-col relative ${isSidebarOpen ? 'hidden md:flex' : 'flex'}`}>
-          {!isSidebarOpen && (
-            <WorkflowSidebarToggleButton 
-              isDarkMode={isDarkMode}
-              onToggle={() => setIsSidebarOpen(true)}
-            />
-          )}
-          
+
+        <main className="relative min-w-0 flex-1">
           {selectedWorkflowId ? (
             <WorkflowBuilder workflowId={selectedWorkflowId} />
           ) : (
             <WorkflowEmptyState onCreateWorkflow={handleCreateWorkflow} />
           )}
-        </div>
-      </LayoutWorkflow>
+
+          {!isSidebarOpen && (
+            <Button variant="glass" size="sm" className="absolute bottom-4 left-4 z-20" onClick={() => setIsSidebarOpen(true)}>
+              <PanelLeftOpen />
+              Workflows
+            </Button>
+          )}
+        </main>
+      </div>
     </>
   );
 }
 
 export default Workflows;
-

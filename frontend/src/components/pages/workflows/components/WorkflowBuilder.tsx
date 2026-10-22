@@ -14,9 +14,14 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { StartNode, AgentNode, AddAgentNode } from './nodes';
-import useDarkModeStore from '../../../../../store/darkmode.store';
+import type { StepStatus } from './nodes/AgentNode';
+import { Badge } from '@/components/ui/badge';
 import useModalsStore from '../../../../../store/modals.store';
 import { useGetWorkflows } from '../hooks';
+
+// Soft white edges; the one into "Add an agent" is dashed
+const EDGE_STYLE = { stroke: 'rgba(255, 255, 255, 0.45)', strokeWidth: 1.5 };
+const ADD_EDGE_STYLE = { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5, strokeDasharray: '6 6' };
 
 const nodeTypes = {
   startNode: StartNode,
@@ -29,12 +34,13 @@ interface WorkflowBuilderProps {
 }
 
 function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
-  const { isDarkMode } = useDarkModeStore();
   const { openAddAgentToWorkflowModal, openRemoveAgentFromWorkflowModal } = useModalsStore();
   const { workflows } = useGetWorkflows();
   
   // שמור את תוצאות הביצוע לכל agent
   const [executionResults, setExecutionResults] = useState<Record<string, string>>({});
+  // Run status per agent step (running / done / failed), shown on each node
+  const [agentStatus, setAgentStatus] = useState<Record<string, StepStatus>>({});
 
   // מצא את ה-workflow הנוכחי
   const currentWorkflow = useMemo(() => 
@@ -60,6 +66,10 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
     }
   }, []);
 
+  const handleAgentStatus = useCallback((agentId: string, status: StepStatus) => {
+    setAgentStatus(prev => ({ ...prev, [agentId]: status }));
+  }, []);
+
   const handleExecutionResult = useCallback((agentId: string, message: string) => {
     setExecutionResults(prev => ({
       ...prev,
@@ -81,6 +91,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
           workflowId: workflowId,
           agentIds: agentIds,
           onExecutionResult: handleExecutionResult,
+          onAgentStatus: handleAgentStatus,
         },
       },
     ];
@@ -98,6 +109,8 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
             label: agent.name || `Agent ${index + 1}`, 
             avatar_base64: agent.avatar_base64,
             agentId: agent.id,
+            step: index + 1,
+            status: agentStatus[agent.id],
             executionResult: executionResults[agent.id],
             onDelete: () => handleDeleteAgent(agent.id, agent.name),
             onOpenInNewTab: () => handleOpenAgentInNewTab(agent.id),
@@ -117,7 +130,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
     });
 
     return nodes;
-  }, [currentWorkflow, handleAddAgent, handleDeleteAgent, handleOpenAgentInNewTab, handleExecutionResult, executionResults]);
+  }, [workflowId, currentWorkflow, handleAddAgent, handleDeleteAgent, handleOpenAgentInNewTab, handleExecutionResult, handleAgentStatus, executionResults, agentStatus]);
 
   // בנה את ה-edges בהתאם ל-nodes
   const buildEdges = useCallback(() => {
@@ -131,7 +144,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
         source: '1',
         target: 'agent-1',
         animated: true,
-        style: { stroke: '#a855f7', strokeWidth: 2 },
+        style: EDGE_STYLE,
       });
       
       // חבר בין ה-agents
@@ -141,7 +154,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
           source: `agent-${i}`,
           target: `agent-${i + 1}`,
           animated: true,
-          style: { stroke: '#a855f7', strokeWidth: 2 },
+          style: EDGE_STYLE,
         });
       }
       
@@ -151,7 +164,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
         source: `agent-${agents.length}`,
         target: 'add-agent',
         animated: true,
-        style: { stroke: '#ec4899', strokeWidth: 2 },
+        style: ADD_EDGE_STYLE,
       });
     } else {
       // חבר Start -> Add Button ישירות
@@ -160,7 +173,7 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
         source: '1',
         target: 'add-agent',
         animated: true,
-        style: { stroke: '#a855f7', strokeWidth: 2 },
+        style: EDGE_STYLE,
       });
     }
 
@@ -181,41 +194,27 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
       const edge = {
         ...connection,
         animated: true,
-        style: { stroke: '#a855f7', strokeWidth: 2 },
+        style: EDGE_STYLE,
       };
       setEdges((eds) => addEdge(edge, eds));
     },
     [setEdges]
   );
 
+  const stepCount = currentWorkflow?.agents?.length ?? 0;
+
   return (
-    <div className="flex-1 relative">
+    <div className="relative h-full min-h-0 flex-1">
       {/* Header */}
-      <div className={`absolute top-0 left-0 right-0 z-10 p-6 pointer-events-none ${
-        isDarkMode
-          ? 'bg-gradient-to-b from-gray-900/80 to-transparent'
-          : 'bg-gradient-to-b from-white/90 to-transparent'
-      }`}>
-        <div className="flex items-center justify-between pointer-events-auto">
-          <div>
-            <h1 className={`text-2xl font-bold mb-1 ${
-              isDarkMode ? 'text-white' : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
-            }`}>{currentWorkflow?.name || 'Workflow'}</h1>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-700'
-            }`}>
-              {currentWorkflow?.description || 'No description'}
-            </p>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 sm:p-6">
+        <div className="pointer-events-auto flex max-w-[640px] items-start gap-3 rounded-3xl border border-white/15 bg-night/70 px-5 py-4 backdrop-blur-[16px]">
+          <div className="min-w-0 flex-1">
+            <h1 className="m-0 truncate font-display text-[22px] leading-7 font-medium tracking-[-0.02em]">{currentWorkflow?.name || 'Workflow'}</h1>
+            <p className="m-0 line-clamp-2 text-sm text-white/66">{currentWorkflow?.description || 'No description'}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-              isDarkMode
-                ? 'bg-purple-500/20 text-purple-400'
-                : 'bg-purple-100 text-purple-700 border border-purple-300'
-            }`}>
-              🟣 {currentWorkflow?.nodes || 0} nodes
-            </span>
-          </div>
+          <Badge className="shrink-0">
+            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
+          </Badge>
         </div>
       </div>
 
@@ -228,21 +227,15 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         fitView
+        fitViewOptions={{ padding: 0.25 }}
         className="bg-transparent"
         proOptions={{ hideAttribution: true }}
       >
-        <Background 
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color={isDarkMode ? "#a855f740" : "#a855f730"}
-        />
-        <Controls 
-          className={
-            isDarkMode
-              ? "!bg-white/[0.05] !border-white/[0.1] [&_button]:!bg-white/[0.05] [&_button]:!border-white/[0.1] [&_button]:!text-white hover:[&_button]:!bg-white/[0.1]"
-              : "!bg-white/90 !border-purple-300 [&_button]:!bg-white [&_button]:!border-purple-300 [&_button]:!text-purple-700 hover:[&_button]:!bg-purple-100"
-          }
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="rgba(255, 255, 255, 0.14)" />
+        <Controls
+          showInteractive={false}
+          position="top-right"
+          className="!m-4 overflow-hidden !rounded-2xl !border !border-white/20 !shadow-none [&_button]:!border-white/10 [&_button]:!bg-night-2 [&_button]:!fill-white [&_button]:!text-white [&_button:hover]:!bg-white/12"
         />
       </ReactFlow>
     </div>
@@ -250,4 +243,3 @@ function WorkflowBuilder({ workflowId }: WorkflowBuilderProps) {
 }
 
 export default WorkflowBuilder;
-

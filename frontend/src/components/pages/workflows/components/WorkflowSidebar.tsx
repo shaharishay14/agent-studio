@@ -1,7 +1,9 @@
-import { Workflow as WorkflowIcon, Plus, X } from 'lucide-react';
+import { Plus, Workflow as WorkflowIcon, X } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { Button, IconButton } from '@/components/ui/button';
 import type { Workflow } from '../types';
 import WorkflowCard from './WorkflowCard';
-import useDarkModeStore from '../../../../../store/darkmode.store';
 
 interface WorkflowSidebarProps {
   workflows: Workflow[];
@@ -14,6 +16,7 @@ interface WorkflowSidebarProps {
   isOpen: boolean;
 }
 
+// Workflow list: a column on desktop, full screen on phones
 function WorkflowSidebar({
   workflows,
   selectedWorkflowId,
@@ -24,85 +27,35 @@ function WorkflowSidebar({
   onClose,
   isOpen,
 }: WorkflowSidebarProps) {
-  const { isDarkMode } = useDarkModeStore();
-  
   return (
-    <div className={`border-r backdrop-blur-sm flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
-      isOpen ? 'w-full md:w-[380px]' : 'w-0 border-r-0'
-    } ${
-      isDarkMode
-        ? 'border-white/[0.08] bg-gradient-to-b from-gray-900/50 to-gray-900/80'
-        : 'border-purple-300/50 bg-gradient-to-br from-white via-purple-50/30 to-pink-50/20'
-    } ${
-      isOpen ? 'absolute md:relative inset-0 z-50 md:z-auto' : ''
-    }`}>
-      {/* Header */}
-      <div className={`p-6 border-b ${
-        isDarkMode 
-          ? 'border-white/[0.08] bg-gradient-to-r from-transparent via-purple-500/5 to-transparent' 
-          : 'border-purple-200 bg-gradient-to-r from-transparent via-purple-50/30 to-transparent'
-      }`}>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              isDarkMode
-                ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20'
-                : 'bg-purple-100 border border-purple-200'
-            }`}>
-              <WorkflowIcon className={`w-6 h-6 ${
-                isDarkMode ? 'text-purple-400' : 'text-purple-600'
-              }`} />
-            </div>
-            <h2 className={`text-xl font-bold ${
-              isDarkMode ? 'text-white' : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent pb-1'
-            }`}>Workflows</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${
-              isDarkMode
-                ? 'hover:bg-white/[0.05] text-gray-400'
-                : 'hover:bg-purple-100 text-purple-700'
-            }`}
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <aside
+      aria-label="Workflows"
+      className={cn(
+        'min-h-0 flex-col border-r border-white/10 bg-side',
+        isOpen ? 'absolute inset-0 z-30 flex md:static md:w-[340px] md:shrink-0' : 'hidden'
+      )}
+    >
+      <div className="flex flex-col gap-4 border-b border-white/10 p-5">
+        <div className="flex items-center gap-2">
+          <h2 className="m-0 flex-1 font-display text-[22px] leading-7 font-medium tracking-[-0.02em]">
+            Your <em className="sky-serif">workflows</em>
+          </h2>
+          <IconButton aria-label="Hide workflows" onClick={onClose}>
+            <X />
+          </IconButton>
         </div>
-
-        {/* New Workflow Button */}
-        <button
-          onClick={onCreateWorkflow}
-          className={`w-full py-3 bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600 rounded-xl text-white font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${
-            isDarkMode ? 'shadow-purple-500/25 hover:shadow-purple-500/40' : 'shadow-purple-500/30 hover:shadow-purple-500/50'
-          }`}
-        >
-          <Plus className="w-5 h-5" />
-          New Workflow
-          <WorkflowIcon className="w-5 h-5" />
-        </button>
+        <Button size="sm" block onClick={onCreateWorkflow}>
+          <Plus />
+          New workflow
+        </Button>
       </div>
 
-      {/* Workflows List */}
-      <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${
-        isDarkMode 
-          ? 'bg-gradient-to-b from-transparent via-purple-500/3 to-transparent' 
-          : 'bg-gradient-to-b from-transparent via-purple-50/20 to-transparent'
-      }`}>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
         {workflows.length === 0 ? (
-          <div className="text-center py-12">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              isDarkMode ? 'bg-white/[0.05]' : 'bg-purple-100 border border-purple-200'
-            }`}>
-              <WorkflowIcon className={`w-8 h-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-purple-600'
-              }`} />
-            </div>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-700'
-            }`}>No workflows yet</p>
-            <p className={`text-xs mt-1 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>Create your first workflow to get started</p>
+          <div className="flex flex-col items-center gap-2 rounded-inner border border-dashed border-white/15 px-4 py-10 text-center">
+            <WorkflowIcon className="size-6 text-white/55" strokeWidth={1.7} aria-hidden="true" />
+            <p className="m-0 text-sm font-medium">No workflows yet</p>
+            <p className="m-0 text-[13px] text-white/60">Chain agents so one answer feeds the next.</p>
           </div>
         ) : (
           workflows.map((workflow) => (
@@ -117,9 +70,8 @@ function WorkflowSidebar({
           ))
         )}
       </div>
-    </div>
+    </aside>
   );
 }
 
 export default WorkflowSidebar;
-

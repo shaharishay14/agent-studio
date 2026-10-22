@@ -1,19 +1,27 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { executeWorkflow } from '../../requests';
+import { Play } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+import { executeWorkflow } from '../../requests';
+import type { StepStatus } from './AgentNode';
 
 interface StartNodeProps {
   data: {
     workflowId?: number;
     agentIds?: string[];
     onExecutionResult?: (agentId: string, message: string) => void;
+    onAgentStatus?: (agentId: string, status: StepStatus) => void;
   };
 }
 
+// First node: the message that starts the run, and the Run button
 function StartNode({ data }: StartNodeProps) {
   const [prompt, setPrompt] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const promptId = useId();
+  const hasAgents = !!data?.agentIds && data.agentIds.length > 0;
 
   const handleExecute = async () => {
     if (!prompt.trim()) {
@@ -25,85 +33,81 @@ function StartNode({ data }: StartNodeProps) {
     }
 
     // נקה תגובות קודמות
-    if (data.onExecutionResult) {
-      data.agentIds.forEach(agentId => {
-        data.onExecutionResult?.(agentId, '');
-      });
-    }
+    data.agentIds.forEach(agentId => {
+      data.onExecutionResult?.(agentId, '');
+      data.onAgentStatus?.(agentId, 'idle');
+    });
 
     setIsPending(true);
     let currentPrompt = prompt.trim();
+    let failed = 0;
 
     try {
-      // שליחה סדרתית לכל agent
+      // שליחה סדרתית לכל agent - each agent's answer feeds the next
       for (const agentId of data.agentIds) {
+        data.onAgentStatus?.(agentId, 'running');
         try {
           const response = await executeWorkflow(data.workflowId, {
             prompt: currentPrompt,
             agent_id: agentId,
           });
-          
-          // עדכן את התגובה ב-AgentNode
+
           if (data.onExecutionResult && response?.message) {
             data.onExecutionResult(agentId, response.message);
-            // השתמש ב-message לשליחה הבאה
             currentPrompt = response.message;
           }
-        } catch (error: any) {
+          data.onAgentStatus?.(agentId, 'done');
+        } catch (error) {
           console.error('Error executing workflow for agent:', agentId, error);
+          data.onAgentStatus?.(agentId, 'error');
+          failed += 1;
           // המשך לסוכן הבא גם אם יש שגיאה
         }
       }
-      
-      toast.success('Workflow בוצע בהצלחה!');
-    } catch (error: any) {
-      const message = error.response?.data?.message || error.message || 'שגיאה בביצוע workflow';
-      toast.error(message);
-      console.error('Error executing workflow:', error);
+
+      if (failed === 0) {
+        toast.success('Workflow finished');
+      } else {
+        toast.error(`Workflow finished, but ${failed} of ${data.agentIds.length} steps failed`);
+      }
     } finally {
       setIsPending(false);
     }
   };
 
   return (
-    <div className="group relative bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-2 border-green-500/50 rounded-2xl p-6 min-w-[280px] transition-all duration-300 hover:border-green-400/80 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-green-500/50">
-      <div className="flex flex-col items-center gap-4">
-        <button 
-          onClick={handleExecute}
-          disabled={isPending || !prompt.trim() || !data?.agentIds || data.agentIds.length === 0}
-          className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed rounded-xl text-white font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-green-500/30 group-hover:shadow-[0_0_25px_rgba(34,197,94,0.6)] group-hover:shadow-green-500/70 group-hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <svg className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          {isPending ? 'Executing...' : 'Execute Workflow'}
-        </button>
-        
-        <div className="w-full">
-          <div className="text-white font-semibold text-sm mb-2">Start</div>
-          <div className="text-green-400 text-xs mb-1">Click to execute workflow</div>
-          
-          <div className="mt-3">
-            <div className="text-green-400 text-xs font-semibold mb-1">Initial Message</div>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Enter the initial message for the workflow..."
-              className="w-full bg-black/30 border border-green-500/30 rounded-lg p-3 text-gray-300 text-xs resize-none focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/30 min-h-[80px]"
-              rows={3}
-            />
-          </div>
-        </div>
+    <div className="w-[300px] rounded-3xl border border-white/25 bg-night-2 p-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_20px_50px_-20px_rgba(0,0,0,0.7)]">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="rounded-pill border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-medium">Start</span>
+        <span className="text-xs text-white/60">Each step's answer goes to the next</span>
       </div>
-      
-      <Handle 
-        type="source" 
-        position={Position.Right}
-        className="!w-3 !h-3 !bg-green-500 !border-2 !border-green-400"
+      <label htmlFor={promptId} className="mb-1.5 block text-[13px] font-medium text-white/85">
+        First message
+      </label>
+      <textarea
+        id={promptId}
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="What should the first agent do?"
+        rows={3}
+        className="nodrag nowheel mb-3 min-h-[84px] w-full resize-none rounded-2xl border border-white/25 bg-white/6 px-3.5 py-2.5 text-sm leading-5 text-white outline-none placeholder:text-white/50 focus:border-white/70"
       />
+      <Button
+        block
+        size="sm"
+        onClick={handleExecute}
+        disabled={!prompt.trim() || !hasAgents}
+        loading={isPending}
+        title={!hasAgents ? 'Add an agent first' : undefined}
+      >
+        {!isPending && <Play />}
+        {isPending ? 'Running…' : 'Run workflow'}
+      </Button>
+      {!hasAgents && <p className="mt-2 mb-0 text-center text-xs text-white/55">Add an agent to run this workflow</p>}
+
+      <Handle type="source" position={Position.Right} className="!size-3 !border-2 !border-night-2 !bg-white" />
     </div>
   );
 }
 
 export default StartNode;
-
