@@ -3,6 +3,7 @@ import { ArrowUp, Settings2, Zap } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Spinner } from "./spinner"
+import { Tooltip } from "./tooltip"
 
 // AI prompt box (21st.dev jahed/ai-prompt-box, Sky version): dark glass box, radius 28,
 // a soft conic glow (warm, blue, ember, white) blurred 30px behind it, rotating every 9s.
@@ -45,41 +46,25 @@ export function PromptToggle({
   hint?: string
   onClick?: () => void
 }) {
-  const hintId = React.useId()
-  return (
-    <span className="group/tog relative inline-flex">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={on}
-        aria-describedby={hint ? hintId : undefined}
-        tabIndex={onClick ? undefined : -1}
-        className={cn(
-          "inline-flex h-[34px] items-center gap-1.5 rounded-pill border px-[13px] text-[13px] leading-none font-medium transition-all duration-200",
-          "focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white [&_svg]:size-3.5 [&_svg]:stroke-[1.7]",
-          on
-            ? "border-white/70 bg-white/16 text-white shadow-[0_0_18px_rgba(230,176,109,0.35)]"
-            : "border-white/22 text-white/75 hover:border-white/45 hover:text-white"
-        )}
-      >
-        {icon}
-        {label}
-      </button>
-      {hint && (
-        <span
-          id={hintId}
-          role="tooltip"
-          className={cn(
-            "pointer-events-none absolute top-[calc(100%+8px)] left-1/2 z-20 -translate-x-1/2 rounded-pill border border-white/25 bg-night-2/95 px-3 py-1.5",
-            "text-xs whitespace-nowrap text-white/85 opacity-0 transition-opacity duration-200",
-            "group-focus-within/tog:opacity-100 group-hover/tog:opacity-100"
-          )}
-        >
-          {hint}
-        </span>
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      tabIndex={onClick ? undefined : -1}
+      className={cn(
+        "inline-flex h-[34px] items-center gap-1.5 rounded-pill border px-[13px] text-[13px] leading-none font-medium transition-all duration-200",
+        "focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white [&_svg]:size-3.5 [&_svg]:stroke-[1.7]",
+        on
+          ? "border-white/70 bg-white/16 text-white shadow-[0_0_18px_rgba(230,176,109,0.35)]"
+          : "border-white/22 text-white/75 hover:border-white/45 hover:text-white"
       )}
-    </span>
+    >
+      {icon}
+      {label}
+    </button>
   )
+  return hint ? <Tooltip content={hint}>{button}</Tooltip> : button
 }
 
 export function PromptSend({

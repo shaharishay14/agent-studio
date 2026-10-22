@@ -1,13 +1,16 @@
 import Router from './components/router'
 import { Toaster } from 'sonner'
 import { MotionConfig } from 'framer-motion'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 function App() {
 
   return (
   // reducedMotion="user": framer-motion skips transforms when prefers-reduced-motion is set
   <MotionConfig reducedMotion="user">
-    <Router />
+    <TooltipProvider delayDuration={150}>
+      <Router />
+    </TooltipProvider>
     <Toaster
       position="top-right"
       theme="dark"
