@@ -86,10 +86,11 @@ export function NewAgentCard({ to = "/builder", onClick }: { to?: string; onClic
         "focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white"
       )}
     >
-      <span className="inline-grid size-[46px] place-items-center rounded-pill border border-white/35 bg-white/8">
+      <span className="inline-grid size-[52px] place-items-center rounded-pill border border-white/35 bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]" aria-hidden="true">
         <Plus className="size-5" strokeWidth={1.7} />
       </span>
-      <span className="font-medium">Describe a new agent</span>
+      <b className="font-semibold">Describe a new agent</b>
+      <span className="text-sm text-white/72">One sentence is enough</span>
     </Link>
   )
 }

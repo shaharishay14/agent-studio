@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import Nav from "../layout/Nav";
+import { AppTopBar } from "../sky/AppTopBar";
 import Chatbot from "../layout/Chatbot";
 import useDarkMode from "../shared/hooks/useDarkMode";
 import useLastVisitedPath from "../shared/hooks/useLastVisitedPath";
@@ -24,7 +24,7 @@ function Root() {
 
     return (
         <Layout>
-            {!hasOwnNav && <Nav />}
+            {!hasOwnNav && <AppTopBar />}
             <Suspense fallback={<PageLoader />}>
                 <Outlet />
             </Suspense>

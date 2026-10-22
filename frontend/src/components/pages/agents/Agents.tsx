@@ -1,61 +1,125 @@
-import { AgentsHeader, AgentsGrid, DeleteConfirmModal, EmptyAgentsState } from './components';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, SearchX } from 'lucide-react';
+
+import { BlurFade } from '@/components/ui/blur-fade';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { HaloToggleGroup } from '@/components/ui/halo-toggle-group';
+import { SearchDock } from '@/components/ui/search-dock';
+import { Spinner } from '@/components/ui/spinner';
+import { AgentCard, NewAgentCard } from '../../sky/AgentCard';
+import { TopBarSlot } from '../../sky/AppTopBar';
+import { HeaderBand } from '../../sky/HeaderBand';
+import { DeleteConfirmModal } from './components';
 import { useGetAgents, useDeleteAgent } from './hooks';
-import { LoadingState, ErrorState } from '../../shared/components';
 import ShareAgentModal from '../../shared/modals/ShareAgentModal';
-import useDarkModeStore from '../../../../store/darkmode.store';
+import useModalsStore from '../../../../store/modals.store';
+import type { Agent } from './types';
+
+type SortKey = 'newest' | 'oldest' | 'most-used';
+
+// Agents have no status / schedule / draft fields, so the halo toggle sorts by real data
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'most-used', label: 'Most used' },
+];
+
+const sorters: Record<SortKey, (a: Agent, b: Agent) => number> = {
+  newest: (a, b) => b.created_at.localeCompare(a.created_at),
+  oldest: (a, b) => a.created_at.localeCompare(b.created_at),
+  'most-used': (a, b) => b.message_count - a.message_count,
+};
 
 function Agents() {
-  const { isDarkMode } = useDarkModeStore();
-  const { agents, isLoading, isError } = useGetAgents();
-  const { 
-    isDeleting, 
-    deleteModal,
-    handleDeleteClick,
-    handleConfirmDelete,
-    handleCancelDelete 
-  } = useDeleteAgent();
+  const { openShareAgentModal } = useModalsStore();
+  const { agents, isLoading, isError, refetch } = useGetAgents();
+  const { isDeleting, deleteModal, handleDeleteClick, handleConfirmDelete, handleCancelDelete } = useDeleteAgent();
+  const [sort, setSort] = useState<SortKey>('newest');
+  const [query, setQuery] = useState('');
 
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return [...(agents ?? [])]
+      .filter((a) => !q || a.name.toLowerCase().includes(q) || a.prompt.toLowerCase().includes(q))
+      .sort(sorters[sort]);
+  }, [agents, query, sort]);
+
+  const count = agents?.length ?? 0;
+  const subtitle = isLoading
+    ? 'Loading your agents…'
+    : count === 0
+      ? 'No agents yet. Describe one in a sentence to get started.'
+      : `${count} ${count === 1 ? 'agent' : 'agents'}. Open one to chat, change its tools or give it a schedule.`;
 
   return (
-    <div className={`min-h-screen p-8 relative overflow-hidden ${
-      isDarkMode
-        ? 'bg-gradient-to-br from-gray-950 via-purple-950/20 to-gray-950'
-        : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100'
-    }`}>
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl ${
-          isDarkMode
-            ? 'bg-purple-500/10'
-            : 'bg-purple-300/50'
-        }`} />
-        <div className={`absolute bottom-20 right-10 w-96 h-96 rounded-full blur-3xl ${
-          isDarkMode
-            ? 'bg-pink-500/10'
-            : 'bg-pink-300/50'
-        }`} />
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl ${
-          isDarkMode
-            ? 'bg-purple-500/5'
-            : 'bg-indigo-200/40'
-        }`} />
-      </div>
-
-      <div className="relative z-10">
-      <AgentsHeader />
-      
-      {isLoading && <LoadingState message="Loading your agents..." />}
-      
-      {isError && <ErrorState message="Error loading agents" />}
-      
-      {!isLoading && !isError && agents && agents.length > 0 && (
-        <AgentsGrid
-          agents={agents}
-          onDelete={(id) => handleDeleteClick(agents, id)}
-        />
+    <div className="min-h-screen bg-night text-white">
+      {count > 0 && (
+        <TopBarSlot>
+          <SearchDock value={query} onChange={setQuery} label="Search agents" placeholder="Search by name or prompt…" />
+        </TopBarSlot>
       )}
 
-      {!isLoading && !isError && agents && agents.length === 0 && <EmptyAgentsState />}
+      <HeaderBand
+        eyebrow="Agents"
+        title="Your"
+        accent="agents"
+        subtitle={subtitle}
+        actions={
+          <>
+            {count > 1 && (
+              <HaloToggleGroup items={SORTS} value={sort} onValueChange={(v) => setSort(v as SortKey)} aria-label="Sort agents" />
+            )}
+            <Link to="/builder" className={buttonVariants({ variant: 'white' })}>
+              <Plus />
+              New agent
+            </Link>
+          </>
+        }
+      />
+
+      <main className="mx-auto max-w-[1280px] px-4 pt-7 pb-20 sm:px-6 lg:px-10">
+        {isLoading && (
+          <div className="grid min-h-[260px] place-items-center">
+            <Spinner label="Loading your agents" />
+          </div>
+        )}
+
+        {isError && (
+          <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 rounded-card border border-white/12 bg-night-2 p-8 text-center" role="alert">
+            <p className="m-0 text-white/72">We couldn't load your agents.</p>
+            <Button variant="glass" size="sm" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !isError && query && shown.length === 0 && (
+          <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 rounded-card border border-white/12 bg-night-2 p-8 text-center" role="status">
+            <SearchX className="size-6 text-white/60" strokeWidth={1.7} aria-hidden="true" />
+            <p className="m-0 text-white/72">No agents match “{query}”.</p>
+            <Button variant="glass" size="sm" onClick={() => setQuery('')}>
+              Clear search
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !isError && (shown.length > 0 || !query) && (
+          <BlurFade>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {shown.map((agent) => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  onShare={(a) => openShareAgentModal(a.id, a.name)}
+                  onDelete={(a) => handleDeleteClick(agents, a.id)}
+                />
+              ))}
+              {!query && <NewAgentCard />}
+            </div>
+          </BlurFade>
+        )}
+      </main>
 
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
@@ -66,10 +130,8 @@ function Agents() {
       />
 
       <ShareAgentModal />
-      </div>
     </div>
   );
 }
 
 export default Agents;
-

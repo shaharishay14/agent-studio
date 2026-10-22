@@ -35,6 +35,8 @@ export interface HaloToggleGroupProps {
   /** Glass track on a photo; false = solid night panel. */
   translucent?: boolean
   disabled?: boolean
+  /** Accessible name for the group */
+  "aria-label"?: string
 }
 
 export function HaloToggleGroup({
@@ -45,6 +47,7 @@ export function HaloToggleGroup({
   className,
   translucent = true,
   disabled = false,
+  "aria-label": ariaLabel,
 }: HaloToggleGroupProps) {
   const reduceMotion = useReducedMotion() ?? false
   const trackRef = useRef<HTMLDivElement>(null)
@@ -125,6 +128,7 @@ export function HaloToggleGroup({
       />
 
       <ToggleGroup
+        aria-label={ariaLabel}
         className="relative z-1 flex min-w-0 gap-0"
         disabled={disabled}
         multiple={false}
