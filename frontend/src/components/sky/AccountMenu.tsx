@@ -33,7 +33,7 @@ export function AccountMenu({ className }: { className?: string }) {
         <DropdownMenu.Content
           align="end"
           sideOffset={10}
-          className="z-[60] w-64 animate-sky-in rounded-3xl border border-white/25 bg-night-2 p-2 text-white shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
+          className="z-[60] w-64 animate-sky-in rounded-3xl border border-white/25 bg-night/85 p-2 text-white backdrop-blur-[24px] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
         >
           <div className="flex items-center gap-3 border-b border-white/10 px-3 pt-2 pb-3">
             <span className="inline-grid size-9 shrink-0 place-items-center rounded-pill bg-white text-sm font-semibold text-on-white" aria-hidden="true">

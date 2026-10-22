@@ -46,7 +46,10 @@ export function LandingNav() {
   useEffect(() => setMobileOpen(false), [location.pathname, location.hash])
 
   return (
-    <header className="sky-glass relative z-30 mx-auto flex w-full max-w-[1080px] items-center gap-5 rounded-pill py-2 pr-2 pl-[18px]">
+    <header className="relative z-30 mx-auto flex w-full max-w-[1080px] items-center gap-5 rounded-pill py-2 pr-2 pl-[18px]">
+      {/* The glass sits on its own layer so the header isn't a backdrop root: the dropdowns
+          inside it can then blur the page behind them */}
+      <span className="sky-glass pointer-events-none absolute inset-0 -z-10 rounded-pill" aria-hidden="true" />
       <Link to="/" aria-label="Agent Studio home" className="rounded-pill no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white">
         <Logo />
       </Link>
@@ -129,7 +132,7 @@ export function LandingNav() {
         <nav
           id="landing-mobile-menu"
           aria-label="Main"
-          className="absolute top-[calc(100%+12px)] right-0 left-0 flex animate-sky-in flex-col gap-1 rounded-3xl border border-white/25 bg-night-2 p-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] md:hidden"
+          className="absolute top-[calc(100%+12px)] right-0 left-0 flex animate-sky-in flex-col gap-1 rounded-3xl border border-white/25 bg-night/85 p-2.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] backdrop-blur-[24px] md:hidden"
         >
           {isAuthenticated
             ? APP_LINKS.map((l) => (
