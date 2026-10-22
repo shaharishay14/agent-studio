@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inbox triage · Agent Studio</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="sky.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400..700&amp;family=Inter:wght@400..700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap">
+<style>body{margin:0;background:#0a0e14}</style>
+</helmet>
+<div class="s-root a-root">
+<header class="a-top"><a href="SkyLanding.dc.html" class="s-logo"><span class="s-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Agent Studio</a><nav aria-label="App" class="a-links"><a class="a-link" href="SkyLanding.dc.html"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Builder</a><a class="a-link is-on" href="SkyAgents.dc.html"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Agents</a><a class="a-link" href="SkyAgents.dc.html"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/></svg>Workflows</a><a class="a-link" href="SkyIntegrations.dc.html"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/></svg>Integrations</a></nav><div class="s-row" style="gap: 10px; flex-wrap: nowrap"><div class="s-sdock s-glass {{searchCls}}">
+<button class="s-icb" aria-label="Search integrations" aria-expanded="{{searchOpen}}" onClick="{{toggleSearch}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+<label for="s-sdock-in" class="s-sr">Search integrations</label>
+<input id="s-sdock-in" class="s-sdock-in" placeholder="Check if we support your tool…" tabindex="{{searchTab}}">
+<button class="s-icb s-sdock-x" aria-label="Close search" onClick="{{toggleSearch}}" tabindex="{{searchTab}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</div><button class="a-user" aria-label="Account menu">S</button></div></header>
+<div class="c-layout">
+<aside class="c-side"><a class="s-btn s-btn--white s-btn--sm" href="SkyLanding.dc.html" style="margin-bottom: 12px"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New agent</a><span class="s-cap" style="min-width: 0; margin: 6px 0">Your agents</span><a class="l-ag is-on" href="SkyChat.dc.html"><span class="s-mark" style="background: #ffffff"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Inbox triage</a><a class="l-ag" href="SkyChat.dc.html"><span class="s-mark" style="background: #ffd7a8"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Weekly planner</a><a class="l-ag" href="SkyChat.dc.html"><span class="s-mark" style="background: #9fc2e0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Support bot</a><a class="l-ag" href="SkyChat.dc.html"><span class="s-mark" style="background: #f3c2b0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Lead finder</a></aside>
+<main class="c-main">
+<div class="c-head"><span class="s-mark" style="width: 40px; height: 40px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span><div class="s-col"><b style="font-weight: 600">Inbox triage</b><span class="s-status"><span class="s-sdot s-sdot--live"></span>Online</span></div><div class="s-row" style="gap: 6px; margin-left: auto"><span class="s-badge"><span class="s-sdot s-sdot--live"></span>Gmail connected</span><button class="s-icb" aria-label="Reset memory"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></button><button class="s-icb" aria-label="Share agent"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></button><button class="s-icb" aria-label="Agent settings"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button></div></div>
+<div class="c-thread">
+<div class="s-bub s-bub--me">Draft replies to anything from clients today.</div>
+<div class="s-trace-card s-glass">
+<button class="s-trace-head" aria-expanded="{{thinkOpen}}" onClick="{{toggleThink}}"><span class="s-orbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="s-think-t">Working on it</span><span class="s-muted" style="font-size: 13px">4 steps</span><span class="s-trace-chev {{thinkChev}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></button>
+<sc-if value="{{thinkOpen}}" hint-placeholder-val="{{true}}">
+<ol class="s-trace">
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Read 12 new emails</span><span class="s-badge">Gmail: search</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Picked out 3 from clients</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Drafted 2 replies</span><span class="s-badge">Gmail: draft</span></li>
+<li class="is-now"><span class="s-trace-ic"><span class="s-ring" style="width: 12px; height: 12px; border-width: 1.5px"></span></span><span>Waiting for your approval to send 1 reply</span><span class="s-badge">Gmail: send</span></li>
+</ol>
+</sc-if>
+</div>
+<div class="s-bub">Found 3 client emails. Two drafts are saved in Gmail. One reply needs your OK before it goes out.</div>
+<div style="align-self: flex-start; width: 100%; max-width: 460px"><div>
+<div class="s-approve s-glass" style="max-width: 460px">
+<div class="s-row" style="justify-content: space-between"><span class="s-row" style="gap: 8px; font-weight: 600"><span class="s-sdot s-sdot--busy"></span>Waiting for your approval</span><span class="s-badge">Expires in 2:41</span></div>
+<div class="s-row" style="gap: 12px"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span><span style="display: flex; flex-direction: column"><b style="font-weight: 600">Gmail: send email</b><span class="s-muted" style="font-size: 13px">To dana@northwind.co</span></span></div>
+<p class="s-approve-msg">Hi Dana, thanks for the quick reply. Tuesday at 10:00 works for us…</p>
+<div class="s-row" style="gap: 8px; justify-content: flex-end"><button class="s-btn s-btn--glass s-btn--sm">Deny</button><button class="s-btn s-btn--white s-btn--sm"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button></div>
+</div>
+</div></div>
+</div>
+<div class="c-compose"><div class="s-prompt" style="border-radius: 26px"><label for="c-ta" class="s-sr">Message Inbox triage</label><textarea id="c-ta" class="s-ta" rows="1" placeholder="Message Inbox triage…" style="min-height: 30px"></textarea><div class="s-prompt-bar"><button class="s-icb" aria-label="Attach files"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button><button class="s-send" aria-label="Send"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div></div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { searchOpen: false, thinkOpen: true }; }
+  renderVals() {
+    var s = this.state, self = this;
+    function flip(k) { return function () { var o = {}; o[k] = !self.state[k]; self.setState(o); }; }
+    return Object.assign({
+      searchOpen: s.searchOpen, searchCls: s.searchOpen ? "is-open" : "", searchTab: s.searchOpen ? "0" : "-1", toggleSearch: flip("searchOpen")
+    }, { thinkOpen: s.thinkOpen, thinkChev: s.thinkOpen ? "is-open" : "", toggleThink: flip("thinkOpen") });
+  }
+}
+</script>
+</body>
+</html>

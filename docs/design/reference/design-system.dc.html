@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Studio: Sky design system</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400..700&amp;family=Inter:wght@400..700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap">
+<style>
+body{margin:0;background:#0a0e14}
+.s-root{background:#0a0e14;color:#ffffff;font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:25px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+:where(.s-root) a{color:inherit}
+.s-ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.s-ic--20{width:20px;height:20px}.s-ic--12{width:12px;height:12px}
+.s-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.s-row{display:flex;flex-wrap:wrap;align-items:center}.s-col{display:flex;flex-direction:column}
+.s-muted{color:rgba(255, 255, 255, 0.72)}
+.s-cap{font-size:12px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255, 255, 255, 0.66);min-width:220px}
+.s-num{font:500 12px/1 Inter,sans-serif;letter-spacing:.1em;color:rgba(255, 255, 255, 0.6);font-variant-numeric:tabular-nums}
+.s-serif,.s-display em{font-family:"Instrument Serif",serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
+.s-glass{background:linear-gradient(180deg,rgba(255, 255, 255, 0.14),rgba(255, 255, 255, 0.05));-webkit-backdrop-filter:blur(24px) saturate(1.7);backdrop-filter:blur(24px) saturate(1.7);border:1px solid rgba(255, 255, 255, 0.3);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.45),inset 0 -1px 0 rgba(255, 255, 255, 0.06),0 20px 50px -20px rgba(0, 0, 0, 0.55)}
+.s-card{border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.s-photo{position:relative;border-radius:28px;overflow:hidden;background:#0a0e14}
+.s-photo--clouds{background:#243e56 url(../assets/sky-clouds.webp) center/cover}
+.s-photo--blur{background:#1a2a48 url(../assets/sky-dusk.webp) center/cover}
+.s-photo--dim{background:linear-gradient(rgba(10, 14, 20, 0.55),rgba(10, 14, 20, 0.55)),#243e56 url(../assets/sky-clouds.webp) center/cover}
+.s-logo{display:inline-flex;align-items:center;gap:10px;font:600 17px/1 "Inter Tight",Inter,sans-serif;letter-spacing:-.02em;text-decoration:none;color:#ffffff}
+.s-mark{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#ffffff;color:#0a0e14;flex:none}.s-mark svg{width:56%;height:56%}
+.s-eyebrow{margin:0;font-size:13px;line-height:18px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255, 255, 255, 0.8)}
+.s-display{margin:0;font-family:"Inter Tight",Inter,sans-serif;font-weight:500;font-size:88px;line-height:88px;letter-spacing:-.045em;text-shadow:0 2px 30px rgba(10, 14, 20, 0.35)}
+.s-display em{font-size:1.05em}
+.s-lead{margin:0;font-size:19px;line-height:30px;color:rgba(255, 255, 255, 0.85);max-width:48ch;text-shadow:0 1px 12px rgba(10, 14, 20, 0.45)}
+/* sections */
+.s-page{max-width:1280px;margin:0 auto;padding:0 48px 120px;display:flex;flex-direction:column;gap:88px}
+.s-spec{display:flex;flex-direction:column;gap:18px;scroll-margin-top:24px}
+.s-spec-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid rgba(255, 255, 255, 0.14)}
+.s-spec-title{margin:0;font:500 26px/30px "Inter Tight",Inter,sans-serif;letter-spacing:-.02em}
+.s-src{margin-left:auto;font-size:13px;color:rgba(255, 255, 255, 0.6)}
+.s-note{margin:0;font-size:14px;color:rgba(255, 255, 255, 0.66)}
+.s-stage{position:relative}
+/* buttons */
+.s-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 22px;border-radius:999px;border:1px solid transparent;font:600 15px/1 Inter,sans-serif;letter-spacing:-.005em;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .15s,background-color .15s,border-color .15s}
+.s-btn:active{transform:scale(.98)}
+.s-btn:focus-visible,.s-chip:focus-visible,.s-tog:focus-visible,.s-icb:focus-visible,.s-send:focus-visible,.s-halo-btn:focus-visible,.s-faq-q:focus-visible,.s-nav-btn:focus-visible,.s-flow:focus-visible,.s-metal:focus-visible,.s-social:focus-visible{outline:2px solid #ffffff;outline-offset:3px}
+.s-btn--white{background:#ffffff;color:#0a0e14}.s-btn--white:hover{background:#f1ede8}
+.s-btn--glass{background:rgba(255, 255, 255, 0.1);color:#ffffff;border-color:rgba(255, 255, 255, 0.55);-webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.35)}
+.s-btn--glass:hover{background:rgba(255, 255, 255, 0.18)}
+.s-btn--ghost{background:none;color:rgba(255, 255, 255, 0.85)}.s-btn--ghost:hover{color:#ffffff}
+.s-btn--sm{height:36px;padding:0 16px;font-size:14px}.s-btn--lg{height:56px;padding:0 30px;font-size:17px}.s-btn--block{display:flex;width:100%;box-sizing:border-box}
+.s-btn[disabled]{opacity:.5;cursor:not-allowed}
+/* nav */
+.s-nav{position:relative;z-index:5;display:flex;align-items:center;gap:20px;padding:8px 8px 8px 18px;border-radius:999px;max-width:1080px;margin:0 auto}
+.s-nav-links{display:flex;gap:4px;margin:0 auto}
+.s-nav-item{position:relative}
+.s-nav-btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border:0;border-radius:999px;background:none;color:rgba(255, 255, 255, 0.86);font:500 14px/1 Inter,sans-serif;text-decoration:none;cursor:pointer}
+.s-nav-btn:hover,.s-nav-btn[aria-expanded=true]{background:rgba(255, 255, 255, 0.14);color:#ffffff}
+.s-mega{position:absolute;top:calc(100% + 12px);left:-12px;width:520px;padding:10px;border-radius:24px;display:grid;grid-template-columns:1fr 1fr;gap:4px;animation:s-in .25s cubic-bezier(.2,.7,.2,1)}
+.s-mega-item{display:flex;gap:12px;padding:12px;border-radius:16px;text-decoration:none}.s-mega-item:hover{background:rgba(255, 255, 255, 0.12)}
+.s-mega-item b{display:block;font-weight:600;font-size:14px}.s-mega-item small{display:block;color:rgba(255, 255, 255, 0.72);font-size:13px;line-height:18px}
+@keyframes s-in{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+.s-sicon{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:999px;flex:none;background:rgba(255, 255, 255, 0.12);border:1px solid rgba(255, 255, 255, 0.35);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.35);color:#ffffff}
+.s-sicon--lg{width:52px;height:52px}
+/* hero */
+.s-hero{position:relative;min-height:860px;display:flex;align-items:center;justify-content:center;background:#243e56 url(../assets/sky-clouds.webp) center/cover;border-radius:28px;overflow:hidden}
+.s-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10, 14, 20, 0.35),rgba(10, 14, 20, 0) 40%,rgba(10, 14, 20, 0.35))}
+.s-hero-in{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:24px;padding:96px 24px;width:100%}
+/* prompt */
+.s-prompt-wrap{position:relative;width:100%;max-width:700px}
+.s-glow{position:absolute;inset:-18px;border-radius:44px;background:conic-gradient(from var(--s-a,0deg),rgba(230, 176, 109, 0.75),rgba(127, 166, 196, 0.7),rgba(201, 87, 61, 0.65),rgba(255, 255, 255, 0.55),rgba(230, 176, 109, 0.75));filter:blur(30px);opacity:.75;animation:s-spin 9s linear infinite}
+@property --s-a{syntax:"<angle>";inherits:false;initial-value:0deg}
+@keyframes s-spin{to{--s-a:360deg}}
+.s-prompt{position:relative;border-radius:28px;padding:18px 18px 14px;background:rgba(14, 18, 26, 0.72);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255, 255, 255, 0.3);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.3);text-align:left}
+.s-ta{width:100%;box-sizing:border-box;border:0;background:none;color:#ffffff;resize:none;font:400 18px/28px Inter,sans-serif;field-sizing:content;min-height:56px;padding:4px 6px}
+.s-ta::placeholder{color:rgba(255, 255, 255, 0.55)}.s-ta:focus{outline:none}
+.s-prompt-bar{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.s-icb{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:999px;border:0;background:none;color:rgba(255, 255, 255, 0.8);cursor:pointer;flex:none}.s-icb:hover{background:rgba(255, 255, 255, 0.12);color:#ffffff}
+.s-tog{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:999px;border:1px solid rgba(255, 255, 255, 0.22);background:none;color:rgba(255, 255, 255, 0.75);font:500 13px/1 Inter,sans-serif;cursor:pointer;transition:all .2s}
+.s-tog:hover{color:#ffffff;border-color:rgba(255, 255, 255, 0.45)}
+.s-tog.is-on{background:rgba(255, 255, 255, 0.16);color:#ffffff;border-color:rgba(255, 255, 255, 0.7);box-shadow:0 0 18px rgba(230, 176, 109, 0.35)}
+.s-send{margin-left:auto;display:inline-grid;place-items:center;width:40px;height:40px;border-radius:999px;border:0;background:#ffffff;color:#0a0e14;cursor:pointer;flex:none}.s-send:hover{transform:scale(1.04)}
+/* chips */
+.s-chip{display:inline-flex;align-items:center;height:38px;padding:0 18px;border-radius:999px;border:1px solid rgba(255, 255, 255, 0.7);background:linear-gradient(180deg,rgba(255, 255, 255, 0.2),rgba(255, 255, 255, 0.06));-webkit-backdrop-filter:blur(14px) saturate(1.7);backdrop-filter:blur(14px) saturate(1.7);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.5),0 8px 24px -12px rgba(0, 0, 0, 0.5);color:#ffffff;font:500 14px/1 Inter,sans-serif;cursor:pointer;transition:background .2s,transform .2s}
+.s-chip:hover{background:rgba(255, 255, 255, 0.24);transform:translateY(-1px)}
+/* browser */
+.s-browser{max-width:960px;margin:0 auto;padding:10px;border-radius:30px;background:linear-gradient(180deg,rgba(255, 255, 255, 0.22),rgba(255, 255, 255, 0.08));-webkit-backdrop-filter:blur(20px) saturate(1.7);backdrop-filter:blur(20px) saturate(1.7);border:1px solid rgba(255, 255, 255, 0.45);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.6),0 40px 80px -30px rgba(0, 0, 0, 0.6)}
+.s-browser-bar{display:flex;align-items:center;gap:12px;padding:6px 10px 12px}
+.s-dots{display:inline-flex;gap:7px}.s-dots i{width:11px;height:11px;border-radius:50%;background:rgba(255, 255, 255, 0.55);display:inline-block}
+.s-url{flex:1;display:flex;align-items:center;gap:8px;height:30px;padding:0 14px;border-radius:999px;background:rgba(10, 14, 20, 0.35);color:rgba(255, 255, 255, 0.85);font-size:13px}
+.s-browser-screen{border-radius:20px;background:#0f141c;overflow:hidden}
+/* beams */
+.s-beams{position:relative;height:420px;border-radius:28px;background:radial-gradient(60% 70% at 50% 50%,rgba(127, 166, 196, 0.16),rgba(10, 14, 20, 0) 70%),#0d1219;border:1px solid rgba(255, 255, 255, 0.12);overflow:hidden}
+.s-beam-svg{position:absolute;inset:0;width:100%;height:100%}
+.s-beam-base{fill:none;stroke:rgba(255, 255, 255, 0.14);stroke-width:1.5}
+.s-beam-run{fill:none;stroke:url(#s-bg);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:90 700;stroke-dashoffset:790;animation:s-run 2.8s cubic-bezier(.4,0,.2,1) infinite}
+.s-beam-run--mini{stroke:#ffd7a8;stroke-width:2;stroke-dasharray:40 260;stroke-dashoffset:300;animation-duration:2.2s}
+@keyframes s-run{to{stroke-dashoffset:0}}
+.s-bnode{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;color:rgba(255, 255, 255, 0.72)}
+.s-bnode small,.s-bcore small{font-size:12px}
+.s-bcore{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;color:rgba(255, 255, 255, 0.85)}
+.s-bcore .s-mark{box-shadow:0 0 0 8px rgba(255, 255, 255, 0.08),0 0 60px rgba(230, 176, 109, 0.45)}
+.s-steps{list-style:none;margin:24px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.s-steps li{display:flex;flex-direction:column;gap:10px;padding-top:18px;border-top:1px solid rgba(255, 255, 255, 0.18)}
+.s-steps h4,.s-fcell h4{margin:0;font:500 22px/28px "Inter Tight",Inter,sans-serif;letter-spacing:-.02em}
+.s-steps p,.s-fcell p{margin:0;color:rgba(255, 255, 255, 0.72);font-size:15px;line-height:23px}
+/* features */
+.s-fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-radius:28px;overflow:hidden;border:1px solid rgba(255, 255, 255, 0.14);background:#0d1219}
+.s-fcell{display:flex;flex-direction:column;gap:12px;padding:28px;border-right:1px solid rgba(255, 255, 255, 0.1);border-bottom:1px solid rgba(255, 255, 255, 0.1)}
+.s-fcell:nth-child(3n){border-right:0}.s-fcell:nth-last-child(-n+3){border-bottom:0}
+.s-fart{position:relative;height:96px;margin-bottom:6px;border-radius:18px;background:radial-gradient(70% 90% at 50% 50%,rgba(230, 176, 109, 0.12),rgba(255, 255, 255, 0.02));border:1px solid rgba(255, 255, 255, 0.1)}
+.s-fart svg{position:absolute;inset:0;width:100%;height:100%}
+.s-mnode{position:absolute;top:50%;transform:translateY(-50%);display:inline-grid;place-items:center;width:34px;height:34px;border-radius:999px;background:rgba(255, 255, 255, 0.12);border:1px solid rgba(255, 255, 255, 0.4);color:#ffffff}
+.s-fcell:nth-child(2) .s-beam-run{animation-delay:.3s}.s-fcell:nth-child(3) .s-beam-run{animation-delay:.6s}.s-fcell:nth-child(4) .s-beam-run{animation-delay:.9s}.s-fcell:nth-child(5) .s-beam-run{animation-delay:1.2s}.s-fcell:nth-child(6) .s-beam-run{animation-delay:1.5s}
+/* integrations */
+.s-integ{border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:26px}
+.s-integ-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.s-integ-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.s-integ-tile{display:flex;align-items:center;gap:14px;padding:14px;border-radius:20px;background:rgba(255, 255, 255, 0.08);border:1px solid rgba(255, 255, 255, 0.22);font-weight:500;transition:background .2s,transform .2s}
+.s-integ-tile:hover{background:rgba(255, 255, 255, 0.16);transform:translateY(-2px)}
+/* pricing */
+.s-price{flex:1 1 360px;border-radius:30px;padding:10px 10px 24px;display:flex;flex-direction:column;gap:22px}
+.s-price>*:not(.s-price-head){margin-left:18px;margin-right:18px}
+.s-price-head{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:190px;justify-content:flex-end;padding:22px;border-radius:22px;background:linear-gradient(180deg,rgba(10, 14, 20, 0) 30%,rgba(10, 14, 20, 0.45)),#243e56 url(../assets/sky-clouds.webp) center 70%/cover;box-shadow:inset 0 0 0 1px rgba(255, 255, 255, 0.25)}
+.s-price-head--plain{background:rgba(255, 255, 255, 0.05)}
+.s-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px;color:rgba(255, 255, 255, 0.85);font-size:15px}
+.s-list li{display:flex;gap:10px;align-items:center}
+.s-badge{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:999px;background:rgba(255, 255, 255, 0.14);border:1px solid rgba(255, 255, 255, 0.4);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:500 12px/1 Inter,sans-serif;color:#ffffff;white-space:nowrap}
+.s-badge--dim{color:rgba(255, 255, 255, 0.85)}
+/* faq */
+.s-faq{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;align-items:center;padding:48px;border-radius:28px;background:linear-gradient(rgba(10, 14, 20, 0.6),rgba(10, 14, 20, 0.6)),#1a2a48 url(../assets/sky-dusk.webp) center/cover}
+.s-faq-list{display:flex;flex-direction:column;gap:4px}
+.s-faq-q{display:flex;align-items:baseline;gap:16px;padding:14px 4px;border:0;background:none;text-align:left;cursor:pointer;color:rgba(255, 255, 255, 0.45);font:500 26px/32px "Inter Tight",Inter,sans-serif;letter-spacing:-.025em;transition:color .35s,transform .35s;transform-origin:left center}
+.s-faq-q:hover{color:rgba(255, 255, 255, 0.8)}
+.s-faq-q.is-on{color:#ffffff;transform:scale(1.04)}
+.s-faq-a{border-radius:28px;padding:32px;display:flex;flex-direction:column;gap:16px;min-height:260px}
+.s-faq-bar{margin-top:auto;height:3px;border-radius:2px;background:rgba(255, 255, 255, 0.2);overflow:hidden}.s-faq-bar i{display:block;height:100%;background:#ffffff;transition:width .4s}
+/* cta */
+.s-cta{position:relative;padding:12px;border-radius:36px;background:linear-gradient(180deg,rgba(255, 255, 255, 0.22),rgba(255, 255, 255, 0.07));border:1px solid rgba(255, 255, 255, 0.45);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.6)}
+.s-cta-img{position:absolute;inset:12px;border-radius:26px;overflow:hidden;background:#243e56 url(../assets/sky-clouds.webp) center/cover;filter:blur(14px) saturate(1.15);transform:scale(1.0)}
+.s-cta-in{position:relative;min-height:460px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;text-align:center;padding:48px 24px;border-radius:26px;overflow:hidden;background:rgba(10, 14, 20, 0.22)}
+/* footer */
+.s-foot{display:flex;flex-direction:column;align-items:center;gap:26px;padding:56px 24px;border-radius:28px;background:#0d1219;border:1px solid rgba(255, 255, 255, 0.12);text-align:center}
+.s-foot a{text-decoration:none;color:rgba(255, 255, 255, 0.78)}.s-foot a:hover{color:#ffffff}
+.s-foot-ring{display:grid;place-items:center;width:104px;height:104px;border-radius:999px}
+.s-social{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:999px;background:rgba(255, 255, 255, 0.08);border:1px solid rgba(255, 255, 255, 0.35);color:#ffffff;transition:background .2s,color .2s,transform .2s;text-decoration:none}
+.s-social:hover{background:#ffffff;color:#0a0e14;transform:translateY(-3px)}
+.s-social--lg{width:58px;height:58px}
+.s-news{display:flex;align-items:center;gap:6px;width:100%;max-width:420px;padding:5px 5px 5px 18px;border-radius:999px;box-sizing:border-box}
+.s-news input{flex:1;min-width:0;border:0;background:none;color:#ffffff;font:400 14px/1 Inter,sans-serif}.s-news input::placeholder{color:rgba(255, 255, 255, 0.6)}.s-news input:focus{outline:none}
+/* chat */
+.s-chatbg{border-radius:28px;padding:48px;background:#1a2a48 url(../assets/sky-dusk.webp) center/cover}
+.s-chat{max-width:640px;margin:0 auto;border-radius:30px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.s-chat-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid rgba(255, 255, 255, 0.22)}
+.s-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:rgba(255, 255, 255, 0.85)}
+.s-bub{max-width:78%;padding:11px 16px;border-radius:20px 20px 20px 6px;background:rgba(10, 14, 20, 0.35);border:1px solid rgba(255, 255, 255, 0.2);font-size:15px;line-height:22px}
+.s-bub--me{align-self:flex-end;border-radius:20px 20px 6px 20px;background:#ffffff;color:#0a0e14;border-color:#ffffff}
+.s-chat-in{display:flex;align-items:center;gap:8px;padding:5px 5px 5px 18px;border-radius:999px;background:rgba(10, 14, 20, 0.3);border:1px solid rgba(255, 255, 255, 0.3)}
+.s-chat-in input{flex:1;min-width:0;border:0;background:none;color:#ffffff;font:400 15px/1 Inter,sans-serif}.s-chat-in input::placeholder{color:rgba(255, 255, 255, 0.65)}.s-chat-in input:focus{outline:none}
+.s-chat-in .s-send{margin-left:0}
+/* approval */
+.s-approve{width:100%;max-width:460px;border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.s-approve .s-row{flex-wrap:nowrap}
+.s-approve-msg{margin:0;padding:12px 14px;border-radius:16px;background:rgba(10, 14, 20, 0.3);font-size:14px;line-height:21px;color:rgba(255, 255, 255, 0.9)}
+/* thinking + status */
+.s-think{display:inline-flex;align-items:center;gap:10px;font-size:14px}
+.s-think-t{background:linear-gradient(90deg,rgba(255, 255, 255, 0.55) 0%,#ffffff 50%,rgba(255, 255, 255, 0.55) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:s-shim 1.8s linear infinite;font-weight:500}
+@keyframes s-shim{to{background-position:-200% 0}}
+.s-think-d{display:inline-flex;gap:4px}.s-think-d i{width:5px;height:5px;border-radius:50%;background:#ffffff;animation:s-bounce 1.2s ease-in-out infinite}.s-think-d i:nth-child(2){animation-delay:.15s}.s-think-d i:nth-child(3){animation-delay:.3s}
+@keyframes s-bounce{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.s-sdot{position:relative;width:8px;height:8px;border-radius:50%;background:rgba(255, 255, 255, 0.55);flex:none}
+.s-sdot--live{background:#7ee2a8}.s-sdot--busy{background:#ffc46b}.s-sdot--off{background:#ff8a7a}
+.s-sdot--live::after,.s-sdot--busy::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:s-ping 1.8s ease-out infinite}
+@keyframes s-ping{0%{transform:scale(1);opacity:.7}80%,100%{transform:scale(2.8);opacity:0}}
+/* halo toggle */
+.s-halo{position:relative;display:grid;grid-template-columns:repeat(4,120px);padding:5px;border-radius:999px;background:rgba(10, 14, 20, 0.4);border:1px solid rgba(255, 255, 255, 0.25);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.s-halo-ind{position:absolute;left:5px;top:5px;bottom:5px;width:120px;border-radius:999px;background:rgba(255, 255, 255, 0.16);border:1px solid rgba(255, 255, 255, 0.8);box-shadow:0 0 22px rgba(255, 255, 255, 0.35),0 0 50px rgba(230, 176, 109, 0.35),inset 0 1px 0 rgba(255, 255, 255, 0.6);transition:transform .45s cubic-bezier(.3,1.3,.5,1)}
+.s-halo-btn{position:relative;height:40px;border:0;background:none;border-radius:999px;color:rgba(255, 255, 255, 0.7);font:500 14px/1 Inter,sans-serif;cursor:pointer}
+.s-halo-btn.is-on{color:#ffffff}
+/* liquid metal frame */
+.s-metal{position:relative;display:inline-flex;align-items:center;justify-content:center;height:52px;padding:0 30px;border-radius:999px;text-decoration:none;color:#ffffff;font:600 15px/1 Inter,sans-serif;background:rgba(10, 14, 20, 0.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:0 10px 30px -12px rgba(0, 0, 0, 0.6)}
+.s-metal::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2px;background:linear-gradient(115deg,#8d939b 0%,#f4f6f8 18%,#a7adb5 32%,#ffffff 46%,#7f858d 60%,#e9ecef 76%,#9aa0a8 100%);background-size:250% 100%;animation:s-metal 4s ease-in-out infinite alternate;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.s-metal span{position:relative}
+@keyframes s-metal{to{background-position:100% 0}}
+/* flow button */
+.s-flow{position:relative;display:inline-flex;align-items:center;gap:12px;height:50px;padding:0 6px 0 22px;border-radius:999px;overflow:hidden;text-decoration:none;color:#ffffff;font:600 15px/1 Inter,sans-serif;border:1px solid rgba(255, 255, 255, 0.6);background:rgba(255, 255, 255, 0.08);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);isolation:isolate}
+.s-flow-fill{position:absolute;right:6px;top:50%;width:38px;height:38px;border-radius:999px;background:#ffffff;transform:translateY(-50%);transition:width .45s cubic-bezier(.65,0,.35,1),right .45s cubic-bezier(.65,0,.35,1),height .45s;z-index:-1}
+.s-flow-t{transition:color .3s .05s}
+.s-flow-a{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:999px;color:#0a0e14;transition:transform .45s cubic-bezier(.65,0,.35,1)}
+.s-flow:hover .s-flow-fill{width:calc(100% - 12px);height:38px}
+.s-flow:hover .s-flow-t{color:#0a0e14}.s-flow:hover .s-flow-a{transform:translateX(4px)}
+.s-flow--white{background:#ffffff;color:#0a0e14;border-color:#ffffff}.s-flow--white .s-flow-fill{background:#0a0e14}.s-flow--white .s-flow-a{color:#ffffff}.s-flow--white:hover .s-flow-t{color:#ffffff}
+/* search dock */
+.s-sdock{display:inline-flex;align-items:center;height:52px;width:52px;padding:6px;box-sizing:border-box;border-radius:999px;overflow:hidden;transition:width .45s cubic-bezier(.65,0,.35,1)}
+.s-sdock .s-icb{color:#ffffff;width:40px;height:40px}
+.s-sdock-in{flex:1;min-width:0;border:0;background:none;color:#ffffff;font:400 15px/1 Inter,sans-serif;opacity:0;transition:opacity .25s}
+.s-sdock-in::placeholder{color:rgba(255, 255, 255, 0.65)}.s-sdock-in:focus{outline:none}
+.s-sdock-x{opacity:0;transition:opacity .25s}
+.s-sdock.is-open{width:420px}.s-sdock.is-open .s-sdock-in,.s-sdock.is-open .s-sdock-x{opacity:1;transition-delay:.2s}
+/* spinners */
+.s-ring{display:inline-block;width:28px;height:28px;border-radius:50%;border:2px solid rgba(255, 255, 255, 0.22);border-top-color:#ffffff;animation:s-rot .8s linear infinite;box-sizing:border-box;flex:none}
+@keyframes s-rot{to{transform:rotate(360deg)}}
+.s-orbit{position:relative;display:inline-block;width:32px;height:32px;animation:s-rot 1.4s linear infinite}.s-orbit i{position:absolute;width:7px;height:7px;border-radius:50%;background:#ffffff}.s-orbit i:nth-child(1){left:12px;top:0}.s-orbit i:nth-child(2){left:1px;bottom:3px;opacity:.6}.s-orbit i:nth-child(3){right:1px;bottom:3px;opacity:.3}
+.s-bars{display:inline-flex;gap:4px;align-items:center;height:28px}.s-bars i{width:4px;height:100%;border-radius:2px;background:#ffffff;animation:s-bar 1s ease-in-out infinite}.s-bars i:nth-child(2){animation-delay:.12s}.s-bars i:nth-child(3){animation-delay:.24s}.s-bars i:nth-child(4){animation-delay:.36s}
+@keyframes s-bar{0%,100%{transform:scaleY(.35);opacity:.5}50%{transform:scaleY(1);opacity:1}}
+.s-pulse{display:inline-block;width:26px;height:26px;border-radius:50%;background:#ffffff;animation:s-pl 1.4s ease-in-out infinite}
+@keyframes s-pl{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.2);opacity:0}}
+/* blur fade */
+.s-bf{animation:s-bf .8s cubic-bezier(.2,.7,.2,1) both}.s-bf1{animation-delay:.12s}.s-bf2{animation-delay:.24s}.s-bf3{animation-delay:.36s}
+@keyframes s-bf{from{opacity:0;filter:blur(8px);transform:translateY(10px)}to{opacity:1;filter:none;transform:none}}
+/* swatches */
+.s-sws{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.s-sw{display:flex;flex-direction:column;gap:6px;font-size:13px}.s-sw span{display:block;height:56px;border-radius:16px;border:1px solid rgba(255, 255, 255, 0.2)}.s-sw b{font-weight:600}.s-sw small{color:rgba(255, 255, 255, 0.66);font-size:12px}
+
+/* how it works v2 */
+.s-how{display:flex;flex-direction:column;gap:28px}
+.s-how-step{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:48px;align-items:center;padding:36px;border-radius:28px;background:#0d1219;border:1px solid rgba(255, 255, 255, 0.12);opacity:0;filter:blur(10px);transform:translateY(28px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),filter .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+.s-how-step.is-in{opacity:1;filter:none;transform:none}
+.s-how-step--flip .s-how-text{order:2}
+.s-how-text{display:flex;flex-direction:column;gap:14px}
+.s-how-text h4{margin:0;font:500 34px/38px "Inter Tight",Inter,sans-serif;letter-spacing:-.03em}
+.s-how-text p{margin:0;color:rgba(255, 255, 255, 0.72);font-size:17px;line-height:27px}
+.s-how-art{display:grid;place-items:center;min-height:340px;border-radius:22px}
+.s-typed{margin:0;min-height:56px;padding:4px 6px;font:400 18px/28px Inter,sans-serif;color:#ffffff}
+.s-caret{display:inline-block;width:2px;height:22px;margin-left:2px;vertical-align:-4px;background:#ffffff;animation:s-blink 1s steps(1) infinite}
+@keyframes s-blink{50%{opacity:0}}
+.s-hbeams{position:relative;width:100%;max-width:560px;aspect-ratio:560/340}
+.s-hbeams svg{position:absolute;inset:0;width:100%;height:100%}
+.s-beam-run--how{stroke:url(#s-bg2);stroke-dasharray:70 600;stroke-dashoffset:670;animation-duration:2.6s}
+.s-hnode{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:1}
+.s-hnode small{position:absolute;top:calc(100% + 6px);font-size:12px;color:rgba(255, 255, 255, 0.66);white-space:nowrap}
+.s-hcircle{display:grid;place-items:center;width:58px;height:58px;border-radius:999px;background:#151d28;border:1px solid rgba(255, 255, 255, 0.32);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.25),0 8px 24px -8px rgba(0, 0, 0, 0.7);color:#ffffff}
+.s-hcore{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:92px;height:92px;border-radius:999px;background:#151d28;border:1px solid rgba(255, 255, 255, 0.4);box-shadow:0 0 0 10px rgba(255, 255, 255, 0.04),0 0 60px rgba(230, 176, 109, 0.35);z-index:1}
+.s-approve--demo .s-ap-ok{transition:transform .2s,box-shadow .2s}
+.s-approve--demo.is-press .s-ap-ok{transform:scale(.94);box-shadow:0 0 0 6px rgba(255, 255, 255, 0.25)}
+.s-approve--demo.is-sent{border-color:rgba(126, 226, 168, 0.6)}
+/* feature hover grid */
+.s-hfgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:28px;overflow:hidden;border:1px solid rgba(255, 255, 255, 0.12);background:#0d1219}
+.s-hf{position:relative;display:flex;flex-direction:column;gap:14px;padding:40px 30px 44px;border-right:1px solid rgba(255, 255, 255, 0.1);isolation:isolate}
+.s-hf:nth-child(4n){border-right:0}.s-hf:nth-child(-n+4){border-bottom:1px solid rgba(255, 255, 255, 0.1)}
+.s-hf::before{content:"";position:absolute;inset:0;z-index:-1;opacity:0;transition:opacity .3s;background:linear-gradient(to top,rgba(255, 255, 255, 0.08),rgba(255, 255, 255, 0))}
+.s-hf:nth-child(n+5)::before{background:linear-gradient(to bottom,rgba(255, 255, 255, 0.08),rgba(255, 255, 255, 0))}
+.s-hf:hover::before{opacity:1}
+.s-hf-ic{color:rgba(255, 255, 255, 0.8)}
+.s-hf-t{position:relative;margin:0;font:500 19px/26px "Inter Tight",Inter,sans-serif;letter-spacing:-.015em}
+.s-hf-bar{position:absolute;left:-30px;top:50%;width:4px;height:24px;border-radius:0 4px 4px 0;background:rgba(255, 255, 255, 0.25);transform:translateY(-50%);transition:height .25s,background .25s}
+.s-hf:hover .s-hf-bar{height:32px;background:#ffffff}
+.s-hf-tt{display:inline-block;transition:transform .25s}
+.s-hf:hover .s-hf-tt{transform:translateX(8px)}
+.s-hf p{margin:0;color:rgba(255, 255, 255, 0.72);font-size:15px;line-height:23px}
+/* integrations-3 */
+.s-i3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center;padding:96px 56px;border-radius:28px;background:#0a0e14;border:1px solid rgba(255, 255, 255, 0.12)}
+.s-i3-cluster{display:flex;flex-direction:column;align-items:center;gap:18px;-webkit-mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 55%,transparent 100%);mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,#000 55%,transparent 100%)}
+.s-i3-row{display:flex;gap:18px;justify-content:center}
+.s-i3-tile{display:grid;place-items:center;width:158px;height:158px;border-radius:28px;box-sizing:border-box;background:linear-gradient(180deg,rgba(255, 255, 255, 0.07),rgba(255, 255, 255, 0.025));border:1px solid rgba(255, 255, 255, 0.1);color:#ffffff}
+.s-i3-tile--center{background:linear-gradient(180deg,rgba(255, 255, 255, 0.14),rgba(255, 255, 255, 0.06));border-color:rgba(255, 255, 255, 0.3);box-shadow:inset 0 1px 0 rgba(255, 255, 255, 0.35),0 24px 48px -16px rgba(0, 0, 0, 0.7),0 0 60px rgba(255, 215, 168, 0.12)}
+.s-i3-ic{display:inline-grid;transition:opacity .35s,transform .35s,filter .35s}
+.s-i3-ic .s-ic{width:56px;height:56px;stroke-width:1.4}
+.s-i3-ic.is-out{opacity:0;transform:scale(.8);filter:blur(4px)}
+.s-i3-text{display:flex;flex-direction:column;gap:28px}
+@media (max-width:1100px){.s-i3{grid-template-columns:1fr;padding:48px 24px}.s-i3-tile{width:96px;height:96px;border-radius:22px}.s-i3-ic .s-ic{width:36px;height:36px}.s-i3-row,.s-i3-cluster{gap:12px}}
+/* thinking orbs + trace */
+.s-orbs{position:relative;display:inline-block;width:26px;height:26px;border-radius:50%;overflow:hidden;flex:none;background:#0d1219;box-shadow:0 0 18px rgba(255, 215, 168, 0.45)}
+.s-orbs i{position:absolute;width:20px;height:20px;border-radius:50%;filter:blur(5px);left:3px;top:3px;animation:s-orb 2.4s ease-in-out infinite}
+.s-orbs i:nth-child(1){background:#ffb870}.s-orbs i:nth-child(2){background:#7fa6c4;animation-delay:-.8s}.s-orbs i:nth-child(3){background:#ffffff;width:12px;height:12px;left:7px;top:7px;animation-delay:-1.6s}
+@keyframes s-orb{0%{transform:translate(-6px,-4px) scale(.9)}33%{transform:translate(6px,-2px) scale(1.1)}66%{transform:translate(0,6px) scale(.95)}100%{transform:translate(-6px,-4px) scale(.9)}}
+.s-trace-card{border-radius:24px;padding:6px;max-width:560px}
+.s-trace-head{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;background:none;color:#ffffff;font:500 15px/1 Inter,sans-serif;cursor:pointer;border-radius:18px;text-align:left}
+.s-trace-head:hover{background:rgba(255, 255, 255, 0.06)}
+.s-trace-head:focus-visible{outline:2px solid #ffffff;outline-offset:2px}
+.s-trace-chev{margin-left:auto;display:inline-grid;transition:transform .25s}.s-trace-chev.is-open{transform:rotate(180deg)}
+.s-trace{list-style:none;margin:4px 12px 12px 24px;padding:0 0 0 18px;border-left:1px solid rgba(255, 255, 255, 0.2);display:flex;flex-direction:column;gap:12px;animation:s-in .3s cubic-bezier(.2,.7,.2,1)}
+.s-trace li{position:relative;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;line-height:20px;color:rgba(255, 255, 255, 0.85)}
+.s-trace-ic{position:absolute;left:-29px;display:grid;place-items:center;width:20px;height:20px;border-radius:999px;background:#151d28;border:1px solid rgba(255, 255, 255, 0.35);color:#7ee2a8}
+.s-trace li.is-now{color:#ffffff;font-weight:500}
+@media (max-width:900px){.s-how-step{grid-template-columns:1fr;padding:22px}.s-how-step--flip .s-how-text{order:0}.s-hfgrid{grid-template-columns:1fr 1fr}.s-hf{border-right:0}}
+@media (prefers-reduced-motion:reduce){.s-how-step{opacity:1;filter:none;transform:none}.s-root *{animation:none !important;transition:none !important}}
+@media (max-width:900px){.s-display{font-size:50px !important;line-height:52px !important}.s-steps,.s-fgrid{grid-template-columns:1fr}.s-fcell{border-right:0 !important;border-bottom:1px solid rgba(255, 255, 255, 0.1) !important}.s-faq{grid-template-columns:1fr;padding:24px}.s-integ-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.s-nav-links{display:none}.s-sws{grid-template-columns:repeat(3,minmax(0,1fr))}.s-halo{grid-template-columns:repeat(4,80px)}.s-halo-ind{width:80px}.s-sdock.is-open{width:100%}}
+@media (max-width:620px){.s-page{padding:0 16px 80px}.s-bnode small{display:none}}
+</style>
+</helmet>
+<div class="s-root" id="top">
+<svg width="0" height="0" style="position: absolute" aria-hidden="true"><defs><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol><symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol><symbol id="i-chevr" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/></symbol><symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol><symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol><symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol><symbol id="i-ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol><symbol id="i-err" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol><symbol id="i-clip" viewBox="0 0 24 24"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol><symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol><symbol id="i-flow" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/></symbol><symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol><symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol><symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol><symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></symbol><symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></symbol><symbol id="i-gh" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.3 6.4-1.5 6.4-7A5.4 5.4 0 0 0 20 4.8 5 5 0 0 0 19.9 1S18.7.7 16 2.5a13.4 13.4 0 0 0-7 0C6.3.7 5.1 1 5.1 1A5 5 0 0 0 5 4.8a5.4 5.4 0 0 0-1.5 3.7c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V22"/></symbol><symbol id="i-msg" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.5 8.5 0 1 1 21 11.5z"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></symbol><symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.99.13A4 4 0 0 0 4 12a4 4 0 0 0 2 3.46V17a3 3 0 0 0 6 0M12 5a3 3 0 1 1 5.99.13A4 4 0 0 1 20 12a4 4 0 0 1-2 3.46V17a3 3 0 0 1-6 0M12 5v12"/></symbol><symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol><symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol><symbol id="i-x-logo" viewBox="0 0 24 24"><path d="M4 4l16 16M20 4 4 20"/></symbol><symbol id="i-in" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M7 10v7M7 7v.01M11 17v-4a2 2 0 0 1 4 0v4M11 10v7"/></symbol><symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol><symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol><symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol><symbol id="i-video" viewBox="0 0 24 24"><path d="m23 7-7 5 7 5z"/><rect x="1" y="5" width="15" height="14" rx="2"/></symbol><symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol><symbol id="i-tasks" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></symbol><symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></symbol><symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 10h-1.3A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></symbol><symbol id="i-trash2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol><symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol></defs></svg>
+<div class="s-photo s-photo--clouds" style="border-radius: 0; padding: 120px 48px 96px; margin-bottom: 72px">
+<div style="max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+<span class="s-logo" style="font-size: 20px"><span class="s-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Agent Studio</span>
+<h1 class="s-display" style="font-size: 96px; line-height: 92px">Sky <em>design system</em></h1>
+<p class="s-lead">White on night, liquid glass, rounded pills, and the warm sky photos doing the color work. Every component for the landing page, in one place.</p>
+</div>
+</div>
+<div class="s-page">
+<section class="s-spec" id="foundations">
+<div class="s-spec-head"><h3 class="s-spec-title">Foundations</h3><span class="s-src">Taken from the two photos</span></div>
+<div class="s-row" style="gap: 20px; align-items: stretch">
+<div class="s-glass s-card" style="flex: 1 1 520px"><span class="s-cap">Colors</span><div class="s-sws"><div class="s-sw"><span style="background: #0a0e14; color: #ffffff"></span><b>Night</b><small>#0a0e14</small></div><div class="s-sw"><span style="background: #243e56; color: #ffffff"></span><b>Dusk</b><small>#243e56</small></div><div class="s-sw"><span style="background: #7fa6c4; color: #0a0e14"></span><b>Haze</b><small>#7fa6c4</small></div><div class="s-sw"><span style="background: #e6b06d; color: #0a0e14"></span><b>Glow</b><small>#e6b06d</small></div><div class="s-sw"><span style="background: #c9573d; color: #ffffff"></span><b>Ember</b><small>#c9573d</small></div><div class="s-sw"><span style="background: #ffffff; color: #0a0e14"></span><b>White</b><small>#ffffff</small></div></div><p class="s-muted" style="margin: 0; font-size: 14px">Interface is white on night. The warm and blue tones live in the photos; in the UI they appear only as soft glows and highlights.</p></div>
+<div class="s-glass s-card" style="flex: 1 1 420px"><span class="s-cap">Type</span><p style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 54px; line-height: 54px">Inter Tight</p><p style="margin: 0; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 48px; line-height: 50px">Instrument Serif</p><p class="s-muted" style="margin: 0">Inter for body and UI, 15 to 17px.</p></div>
+<div class="s-glass s-card" style="flex: 1 1 300px"><span class="s-cap">Liquid glass</span><p class="s-muted" style="margin: 0; font-size: 14px; line-height: 22px">White at 8% with a 24px blur and boosted saturation, a 1px white outline at 30%, and a bright top edge. Pills everywhere; cards at 28px radius.</p><div class="s-row" style="gap: 10px"><span class="s-chip">Pill</span><span class="s-btn s-btn--white s-btn--sm">White</span></div></div>
+</div>
+</section><section class="s-spec" id="c1">
+<div class="s-spec-head"><h3 class="s-spec-title">Navbar</h3><span class="s-src">Based on larsen66/navigation-menu</span></div>
+<p class="s-note">Open the Product menu to see the panel.</p>
+<div class="s-stage"><div class="s-photo s-photo--clouds" style="padding: 28px; min-height: 360px"><header class="s-nav s-glass">
+<a href="#top" class="s-logo"><span class="s-mark"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Agent Studio</a>
+<nav aria-label="Main" class="s-nav-links">
+<div class="s-nav-item"><button class="s-nav-btn" aria-expanded="{{navOpen}}" onClick="{{toggleNav}}">Product<svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+<sc-if value="{{navOpen}}" hint-placeholder-val="{{true}}">
+<div class="s-mega s-glass">
+<a href="#c06" class="s-mega-item"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span><span><b>Builder</b><small>Describe an agent in one sentence</small></span></a>
+<a href="#c07" class="s-mega-item"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/></svg></span><span><b>Workflows</b><small>Chain agents step by step</small></span></a>
+<a href="#c08" class="s-mega-item"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/></svg></span><span><b>Integrations</b><small>Gmail, WhatsApp, Telegram and more</small></span></a>
+<a href="#c14" class="s-mega-item"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><span><b>Approvals</b><small>Nothing sends without your OK</small></span></a>
+</div>
+</sc-if></div>
+<a href="#c06" class="s-nav-btn">How it works</a><a href="#c09" class="s-nav-btn">Pricing</a><a href="#c10" class="s-nav-btn">FAQ</a>
+</nav>
+<div class="s-row" style="gap: 8px"><a class="s-btn s-btn--ghost s-btn--sm" href="#signin">Sign in</a><a class="s-btn s-btn--white s-btn--sm" href="#signup">Start free</a></div>
+</header></div></div>
+</section><section class="s-spec" id="c2">
+<div class="s-spec-head"><h3 class="s-spec-title">Hero with background image</h3><span class="s-src">Based on your cloud photo</span></div>
+
+<div class="s-stage"><div class="s-hero">
+<div class="s-hero-in">
+<p class="s-eyebrow s-bf">Open-source agent builder</p>
+<h1 class="s-display s-bf s-bf1">Describe an agent.<br><em>Watch it work.</em></h1>
+<p class="s-lead s-bf s-bf2">Write one sentence. Agent Studio picks the tools, reads your files, runs on a schedule, and asks before it sends anything for you.</p>
+<div class="s-bf s-bf3" style="width: 100%; max-width: 700px"><div class="s-prompt-wrap">
+<div class="s-glow" aria-hidden="true"></div>
+<div class="s-prompt">
+<label for="s-prompt-ta" class="s-sr">Describe your agent</label>
+<textarea id="s-prompt-ta" class="s-ta" rows="2" placeholder="Describe an agent…">An agent that reads my inbox every morning and drafts replies to anything from clients.</textarea>
+<div class="s-prompt-bar">
+<button class="s-icb" aria-label="Attach files"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button>
+<button class="s-tog {{tSearch}}" aria-pressed="{{pSearch}}" onClick="{{togSearch}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>Search</button>
+<button class="s-tog {{tThink}}" aria-pressed="{{pThink}}" onClick="{{togThink}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.99.13A4 4 0 0 0 4 12a4 4 0 0 0 2 3.46V17a3 3 0 0 0 6 0M12 5a3 3 0 1 1 5.99.13A4 4 0 0 1 20 12a4 4 0 0 1-2 3.46V17a3 3 0 0 1-6 0M12 5v12"/></svg>Think</button>
+<button class="s-tog {{tCanvas}}" aria-pressed="{{pCanvas}}" onClick="{{togCanvas}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Canvas</button>
+<button class="s-send" aria-label="Create agent"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+</div>
+</div>
+</div></div>
+<div class="s-bf s-bf3"><div class="s-row" style="gap: 10px; justify-content: center"><button class="s-chip">Summarize my inbox every morning</button><button class="s-chip">Plan my week from my calendar</button><button class="s-chip">Answer customers on WhatsApp</button></div></div>
+</div>
+</div></div>
+</section><section class="s-spec" id="c3">
+<div class="s-spec-head"><h3 class="s-spec-title">AI prompt box with glow</h3><span class="s-src">Based on jahed/ai-prompt-box</span></div>
+<p class="s-note">The toggles work. The glow drifts slowly around the box.</p>
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 64px; display: grid; place-items: center"><div class="s-prompt-wrap">
+<div class="s-glow" aria-hidden="true"></div>
+<div class="s-prompt">
+<label for="s-prompt-ta" class="s-sr">Describe your agent</label>
+<textarea id="s-prompt-ta" class="s-ta" rows="2" placeholder="Describe an agent…">An agent that reads my inbox every morning and drafts replies to anything from clients.</textarea>
+<div class="s-prompt-bar">
+<button class="s-icb" aria-label="Attach files"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button>
+<button class="s-tog {{tSearch}}" aria-pressed="{{pSearch}}" onClick="{{togSearch}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>Search</button>
+<button class="s-tog {{tThink}}" aria-pressed="{{pThink}}" onClick="{{togThink}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.99.13A4 4 0 0 0 4 12a4 4 0 0 0 2 3.46V17a3 3 0 0 0 6 0M12 5a3 3 0 1 1 5.99.13A4 4 0 0 1 20 12a4 4 0 0 1-2 3.46V17a3 3 0 0 1-6 0M12 5v12"/></svg>Think</button>
+<button class="s-tog {{tCanvas}}" aria-pressed="{{pCanvas}}" onClick="{{togCanvas}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Canvas</button>
+<button class="s-send" aria-label="Create agent"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+</div>
+</div>
+</div></div></div>
+</section><section class="s-spec" id="c4">
+<div class="s-spec-head"><h3 class="s-spec-title">Suggestion chips</h3><span class="s-src">Based on custom liquid glass</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--clouds" style="padding: 56px"><div class="s-row" style="gap: 10px; justify-content: center"><button class="s-chip">Summarize my inbox every morning</button><button class="s-chip">Plan my week from my calendar</button><button class="s-chip">Answer customers on WhatsApp</button></div></div></div>
+</section><section class="s-spec" id="c5">
+<div class="s-spec-head"><h3 class="s-spec-title">Browser mockup</h3><span class="s-src">Based on custom, liquid glass edge</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--clouds" style="padding: 56px"><div class="s-browser">
+<div class="s-browser-bar"><span class="s-dots"><i></i><i></i><i></i></span><span class="s-url"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>agentstudio.app/chat/inbox-triage</span></div>
+<div class="s-browser-screen" style="height: 300px; display: grid; place-items: center"><span class="s-logo" style="font-size: 22px"><span class="s-mark" style="width: 36px; height: 36px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span>Agent Studio</span></div>
+</div></div></div>
+</section><section class="s-spec" id="c6">
+<div class="s-spec-head"><h3 class="s-spec-title">How it works</h3><span class="s-src">Based on blur fade on scroll + dillionverma/animated-beam for step two</span></div>
+<p class="s-note">Each step fades in as you scroll to it, then plays its own animation.</p>
+<div class="s-stage"><div class="s-how">
+<article class="s-how-step {{st0}}" data-step="0"><div class="s-how-text"><h4>Describe it</h4><p>Say what the agent should do in plain words. YOLO mode picks the tools and prompt for you; Manual mode lets you set every part.</p></div><div class="s-how-art"><div class="s-prompt-wrap" style="max-width: 520px"><div class="s-glow" aria-hidden="true" style="opacity: .55"></div><div class="s-prompt"><p class="s-typed" aria-label="An agent that reads my inbox every morning and drafts replies to anything from clients.">{{typed}}<span class="s-caret" aria-hidden="true"></span></p><div class="s-prompt-bar"><button class="s-icb" aria-label="Attach files"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m21.4 11.6-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button><span class="s-tog is-on"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>YOLO</span><button class="s-send" aria-label="Create agent"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div></div></div></article>
+<article class="s-how-step s-how-step--flip {{st1}}" data-step="1"><div class="s-how-text"><h4>Connect your tools</h4><p>Sign in once to Gmail, Calendar, WhatsApp and more. Your agent only reaches for a tool when the job calls for it.</p></div><div class="s-how-art"><div class="s-hbeams">
+<svg viewBox="0 0 560 340" aria-hidden="true"><defs><linearGradient id="s-bg2" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="560" y2="0"><stop offset="0" stop-color="#ffd7a8"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#9fc2e0"/></linearGradient></defs><path d="M 70 60 C 175.0 60, 175.0 170, 280 170" class="s-beam-base"/><path d="M 70 60 C 175.0 60, 175.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 0.0s"/><path d="M 70 170 C 175.0 170, 175.0 170, 280 170" class="s-beam-base"/><path d="M 70 170 C 175.0 170, 175.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 0.4s"/><path d="M 70 280 C 175.0 280, 175.0 170, 280 170" class="s-beam-base"/><path d="M 70 280 C 175.0 280, 175.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 0.8s"/><path d="M 490 60 C 385.0 60, 385.0 170, 280 170" class="s-beam-base"/><path d="M 490 60 C 385.0 60, 385.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 1.2s"/><path d="M 490 170 C 385.0 170, 385.0 170, 280 170" class="s-beam-base"/><path d="M 490 170 C 385.0 170, 385.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 1.6s"/><path d="M 490 280 C 385.0 280, 385.0 170, 280 170" class="s-beam-base"/><path d="M 490 280 C 385.0 280, 385.0 170, 280 170" class="s-beam-run s-beam-run--how" style="animation-delay: 2.0s"/></svg>
+<span class="s-hnode" style="left: 12.500%; top: 17.647%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span><small>Gmail</small></span><span class="s-hnode" style="left: 12.500%; top: 50.000%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><small>Calendar</small></span><span class="s-hnode" style="left: 12.500%; top: 82.353%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg></span><small>Drive</small></span><span class="s-hnode" style="left: 87.500%; top: 17.647%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg></span><small>WhatsApp</small></span><span class="s-hnode" style="left: 87.500%; top: 50.000%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></span><small>Telegram</small></span><span class="s-hnode" style="left: 87.500%; top: 82.353%"><span class="s-hcircle"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><small>Files</small></span>
+<span class="s-hcore"><span class="s-mark" style="width: 52px; height: 52px; border-radius: 15px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span></span>
+</div></div></article>
+<article class="s-how-step {{st2}}" data-step="2"><div class="s-how-text"><h4>Approve and let it run</h4><p>Chat with it, schedule it, or start it from an app event. Anything that sends, posts or deletes waits for your OK.</p></div><div class="s-how-art s-photo s-photo--blur" style="padding: 40px; display: grid; place-items: center"><div class="s-approve s-glass s-approve--demo {{apCls}}">
+<div class="s-row" style="justify-content: space-between"><span class="s-row" style="gap: 8px; font-weight: 600"><span class="s-sdot {{apDot}}"></span>{{apTitle}}</span><span class="s-badge">{{apBadge}}</span></div>
+<div class="s-row" style="gap: 12px"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span><span style="display: flex; flex-direction: column"><b style="font-weight: 600">Gmail: send email</b><span class="s-muted" style="font-size: 13px">To dana@northwind.co</span></span></div>
+<p class="s-approve-msg">Hi Dana, thanks for the quick reply. Tuesday at 10:00 works for us…</p>
+<div class="s-row" style="gap: 8px; justify-content: flex-end"><button class="s-btn s-btn--glass s-btn--sm" tabindex="-1">Deny</button><button class="s-btn s-btn--white s-btn--sm s-ap-ok" tabindex="-1"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button></div>
+</div></div></article>
+</div></div>
+</section><section class="s-spec" id="c7">
+<div class="s-spec-head"><h3 class="s-spec-title">Feature grid</h3><span class="s-src">Based on manuarora700/feature-section-with-hover-effects</span></div>
+<p class="s-note">Hover a feature: the bar lights up and the title slides.</p>
+<div class="s-stage"><div class="s-hfgrid"><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Connect your tools</span></h4><p>Gmail, WhatsApp, Telegram and more. Your agent picks the right one for each step.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Give it your files</span></h4><p>Upload docs and playbooks. The agent reads them before it answers.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Run on a schedule</span></h4><p>Every morning, every Friday, or the moment a new email lands.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Ask before acting</span></h4><p>Sends, posts and deletes wait for your approval, with the exact details.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Chain agents</span></h4><p>Build a workflow where one agent's answer feeds the next.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Share it anywhere</span></h4><p>A link, a QR code, an embed, or a bot on WhatsApp and Telegram.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Reset memory anytime</span></h4><p>Clear what an agent remembers in one click. Files and tools stay connected.</p></article><article class="s-hf"><span class="s-hf-ic"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg></span><h4 class="s-hf-t"><span class="s-hf-bar" aria-hidden="true"></span><span class="s-hf-tt">Open source</span></h4><p>The whole app is on GitHub. Read it, run it, change it.</p></article></div></div>
+</section><section class="s-spec" id="c8">
+<div class="s-spec-head"><h3 class="s-spec-title">Integrations</h3><span class="s-src">Based on meschacirung/integrations-3</span></div>
+<p class="s-note">Only the icons change: every 2 seconds each one fades out and the next tool fades in.</p>
+<div class="s-stage"><div class="s-i3">
+<div class="s-i3-cluster" aria-label="Integrations">
+<div class="s-i3-row"><sc-for list="{{slotsT}}" as="c" hint-placeholder-count="2"><div class="s-i3-tile"><span class="s-i3-ic {{c.cls}}" style="transition-delay: {{c.delay}}"><svg class="s-ic" aria-hidden="true"><use href="{{c.href}}"></use></svg></span><span class="s-sr">{{c.name}}</span></div></sc-for></div>
+<div class="s-i3-row"><sc-for list="{{slotsM1}}" as="c" hint-placeholder-count="1"><div class="s-i3-tile"><span class="s-i3-ic {{c.cls}}" style="transition-delay: {{c.delay}}"><svg class="s-ic" aria-hidden="true"><use href="{{c.href}}"></use></svg></span><span class="s-sr">{{c.name}}</span></div></sc-for><div class="s-i3-tile s-i3-tile--center"><span class="s-mark" style="width: 64px; height: 64px; border-radius: 18px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span></div><sc-for list="{{slotsM2}}" as="c" hint-placeholder-count="1"><div class="s-i3-tile"><span class="s-i3-ic {{c.cls}}" style="transition-delay: {{c.delay}}"><svg class="s-ic" aria-hidden="true"><use href="{{c.href}}"></use></svg></span><span class="s-sr">{{c.name}}</span></div></sc-for></div>
+<div class="s-i3-row"><sc-for list="{{slotsB}}" as="c" hint-placeholder-count="2"><div class="s-i3-tile"><span class="s-i3-ic {{c.cls}}" style="transition-delay: {{c.delay}}"><svg class="s-ic" aria-hidden="true"><use href="{{c.href}}"></use></svg></span><span class="s-sr">{{c.name}}</span></div></sc-for></div>
+</div>
+<div class="s-i3-text"><h2 style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 60px; line-height: 64px; font-weight: 600; letter-spacing: -0.035em">Plug in the tools you already use</h2><p class="s-muted" style="margin: 0; font-size: 19px; line-height: 30px; max-width: 34ch">Connect Gmail, WhatsApp, Telegram and [NUMBER]+ more. Sign in once and every agent can use them.</p><a class="s-btn s-btn--white" href="#all" style="align-self: flex-start">Get started</a></div>
+</div></div>
+</section><section class="s-spec" id="c9">
+<div class="s-spec-head"><h3 class="s-spec-title">Pricing cards</h3><span class="s-src">Based on efferd/pricing-card</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 48px"><div class="s-row" style="gap: 24px; align-items: stretch">
+<article class="s-price s-glass">
+<div class="s-price-head"><span class="s-badge">Available now</span><h4 style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 40px; line-height: 40px">Free</h4><p style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 64px; line-height: 64px">$0</p></div>
+<ul class="s-list"><li><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>[MONTHLY CREDITS] credits each month</li><li><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Agents, tools, files and triggers</li><li><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Workflows</li><li><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Share by link, QR code and embed</li></ul>
+<a class="s-btn s-btn--white s-btn--block" href="#signup">Create your first agent</a>
+</article>
+<article class="s-price s-glass">
+<div class="s-price-head s-price-head--plain"><span class="s-badge s-badge--dim"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Coming soon</span><h4 style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 40px; line-height: 40px">Pro</h4><p style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 64px; line-height: 64px; color: rgba(255, 255, 255, 0.55)">[PRICE]</p></div>
+<p class="s-muted" style="margin: 0">For agents that run all day. [PRO DETAILS]</p>
+<button class="s-btn s-btn--glass s-btn--block" disabled>Coming soon</button>
+</article>
+</div></div></div>
+</section><section class="s-spec" id="c10">
+<div class="s-spec-head"><h3 class="s-spec-title">FAQ scroller</h3><span class="s-src">Based on dhileepkumargm/habit-faq-scroller</span></div>
+<p class="s-note">It moves to the next question every 6 seconds; click any question to jump.</p>
+<div class="s-stage"><div class="s-faq">
+<div class="s-faq-list" role="tablist" aria-label="Questions">
+<sc-for list="{{faqs}}" as="f" hint-placeholder-count="5">
+<button class="s-faq-q {{f.cls}}" role="tab" aria-selected="{{f.on}}" onClick="{{f.pick}}">{{f.q}}</button>
+</sc-for>
+</div>
+<div class="s-faq-a s-glass" role="tabpanel"><h4 style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 28px; line-height: 34px">{{faqQ}}</h4><p class="s-muted" style="margin: 0; font-size: 17px; line-height: 27px">{{faqA}}</p><div class="s-faq-bar"><i style="width: {{faqPct}}"></i></div></div>
+</div></div>
+</section><section class="s-spec" id="c11">
+<div class="s-spec-head"><h3 class="s-spec-title">Closing call to action</h3><span class="s-src">Based on your cloud photo, extra blur</span></div>
+
+<div class="s-stage"><div class="s-cta">
+<div class="s-cta-img" aria-hidden="true"></div>
+<div class="s-cta-in"><h2 style="font-family: 'Inter Tight', Inter, sans-serif; font-weight: 500; letter-spacing: -0.035em; margin: 0; font-size: 64px; line-height: 64px; max-width: 14ch">Your first agent is <em class="s-serif">one sentence away.</em></h2><div class="s-row" style="gap: 10px; justify-content: center"><a class="s-btn s-btn--white s-btn--lg" href="#top">Create an agent</a><a class="s-btn s-btn--glass s-btn--lg" href="https://github.com/shaharishay14/agent-studio"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.3 6.4-1.5 6.4-7A5.4 5.4 0 0 0 20 4.8 5 5 0 0 0 19.9 1S18.7.7 16 2.5a13.4 13.4 0 0 0-7 0C6.3.7 5.1 1 5.1 1A5 5 0 0 0 5 4.8a5.4 5.4 0 0 0-1.5 3.7c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V22"/></svg>View on GitHub</a></div></div>
+</div></div>
+</section><section class="s-spec" id="c12">
+<div class="s-spec-head"><h3 class="s-spec-title">Footer</h3><span class="s-src">Based on arihantcodes_1f7b8c4d/stacked-circular-footer</span></div>
+
+<div class="s-stage"><footer class="s-foot">
+<span class="s-foot-ring s-glass"><span class="s-mark" style="width: 52px; height: 52px; border-radius: 15px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span></span>
+<nav aria-label="Footer" class="s-row" style="gap: 28px; justify-content: center"><a href="#c06">How it works</a><a href="#c07">Features</a><a href="#c09">Pricing</a><a href="#c10">FAQ</a><a href="https://github.com/shaharishay14/agent-studio">GitHub</a></nav>
+<div class="s-row" style="gap: 12px; justify-content: center"><a class="s-social" href="https://github.com/shaharishay14/agent-studio" aria-label="GitHub"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.3 6.4-1.5 6.4-7A5.4 5.4 0 0 0 20 4.8 5 5 0 0 0 19.9 1S18.7.7 16 2.5a13.4 13.4 0 0 0-7 0C6.3.7 5.1 1 5.1 1A5 5 0 0 0 5 4.8a5.4 5.4 0 0 0-1.5 3.7c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V22"/></svg></a><a class="s-social" href="#x" aria-label="X"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4 4 20"/></svg></a><a class="s-social" href="#linkedin" aria-label="LinkedIn"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M7 10v7M7 7v.01M11 17v-4a2 2 0 0 1 4 0v4M11 10v7"/></svg></a><a class="s-social" href="#mail" aria-label="Email"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></a></div>
+<form class="s-news s-glass" onSubmit="{{noSubmit}}"><label for="s-news" class="s-sr">Email address</label><input id="s-news" type="email" placeholder="Get release notes by email"><button class="s-btn s-btn--white s-btn--sm" type="submit">Subscribe</button></form>
+<p class="s-muted" style="margin: 0; font-size: 13px">© 2026 Agent Studio · <a href="#terms">Terms of service</a> · <a href="#privacy">Privacy policy</a></p>
+</footer></div>
+</section><section class="s-spec" id="c13">
+<div class="s-spec-head"><h3 class="s-spec-title">Chat window</h3><span class="s-src">Based on custom liquid glass on the dusk photo</span></div>
+
+<div class="s-stage"><div class="s-chatbg">
+<div class="s-chat s-glass">
+<div class="s-chat-head"><span class="s-mark" style="width: 38px; height: 38px"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5"/><rect x="12" y="12" width="10" height="10" rx="2.6"/><path d="M9 9l5 5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></span><div style="display: flex; flex-direction: column"><b style="font-weight: 600">Inbox triage</b><span class="s-status"><span class="s-sdot s-sdot--live"></span>Online</span></div><span class="s-badge" style="margin-left: auto"><span class="s-sdot s-sdot--live"></span>Gmail connected</span></div>
+<div class="s-bub s-bub--me">Draft replies to anything from clients today.</div>
+<div class="s-trace-card s-glass">
+<button class="s-trace-head" aria-expanded="{{thinkOpen}}" onClick="{{toggleThink}}"><span class="s-orbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="s-think-t">Working on it</span><span class="s-muted" style="font-size: 13px">4 steps</span><span class="s-trace-chev {{thinkChev}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></button>
+<sc-if value="{{thinkOpen}}" hint-placeholder-val="{{true}}">
+<ol class="s-trace">
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Read 12 new emails</span><span class="s-badge">Gmail: search</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Picked out 3 from clients</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Drafted 2 replies</span><span class="s-badge">Gmail: draft</span></li>
+<li class="is-now"><span class="s-trace-ic"><span class="s-ring" style="width: 12px; height: 12px; border-width: 1.5px"></span></span><span>Waiting for your approval to send 1 reply</span><span class="s-badge">Gmail: send</span></li>
+</ol>
+</sc-if>
+</div>
+<div class="s-bub">Found 3 client emails. Two drafts are saved. One reply needs your OK before it goes out.</div>
+<div class="s-chat-in"><label for="s-chat-in" class="s-sr">Message</label><input id="s-chat-in" placeholder="Message Inbox triage…"><button class="s-send" aria-label="Send"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+</div>
+</div></div>
+</section><section class="s-spec" id="c14">
+<div class="s-spec-head"><h3 class="s-spec-title">Approval card</h3><span class="s-src">Based on custom liquid glass</span></div>
+
+<div class="s-stage"><div class="s-chatbg" style="padding: 48px; display: grid; place-items: center">
+<div class="s-approve s-glass">
+<div class="s-row" style="justify-content: space-between"><span class="s-row" style="gap: 8px; font-weight: 600"><span class="s-sdot s-sdot--busy"></span>Waiting for your approval</span><span class="s-badge">Expires in 2:41</span></div>
+<div class="s-row" style="gap: 12px"><span class="s-sicon"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span><span style="display: flex; flex-direction: column"><b style="font-weight: 600">Gmail: send email</b><span class="s-muted" style="font-size: 13px">To dana@northwind.co</span></span></div>
+<p class="s-approve-msg">Hi Dana, thanks for the quick reply. Tuesday at 10:00 works for us…</p>
+<div class="s-row" style="gap: 8px; justify-content: flex-end"><button class="s-btn s-btn--glass s-btn--sm">Deny</button><button class="s-btn s-btn--white s-btn--sm"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Approve</button></div>
+</div>
+</div></div>
+</section><section class="s-spec" id="c15">
+<div class="s-spec-head"><h3 class="s-spec-title">Segmented control</h3><span class="s-src">Based on cult-ui/halo-toggle-group</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 56px; display: grid; place-items: center"><div class="s-halo" role="tablist" aria-label="Builder mode">
+<span class="s-halo-ind" aria-hidden="true" style="transform: translateX({{haloX}})"></span>
+<sc-for list="{{halos}}" as="h" hint-placeholder-count="4"><button class="s-halo-btn {{h.cls}}" role="tab" aria-selected="{{h.on}}" onClick="{{h.pick}}">{{h.label}}</button></sc-for>
+</div></div></div>
+</section><section class="s-spec" id="c16">
+<div class="s-spec-head"><h3 class="s-spec-title">Buttons</h3><span class="s-src">Based on johuniq/liquid-metal-button + xubohuah/flow-button</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 48px"><div class="s-col" style="gap: 22px">
+<div class="s-row" style="gap: 14px"><span class="s-cap">Liquid metal frame (once per page)</span><a class="s-metal" href="#signup"><span>Start building</span></a></div>
+<div class="s-row" style="gap: 14px"><span class="s-cap">Flow button</span><a class="s-flow" href="#how"><span class="s-flow-fill" aria-hidden="true"></span><span class="s-flow-t">See how it works</span><span class="s-flow-a"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a><a class="s-flow s-flow--white" href="#signup"><span class="s-flow-fill" aria-hidden="true"></span><span class="s-flow-t">Start free</span><span class="s-flow-a"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a></div>
+<div class="s-row" style="gap: 14px"><span class="s-cap">White pill</span><a class="s-btn s-btn--white" href="#a">Create agent</a><a class="s-btn s-btn--white s-btn--sm" href="#a">Approve</a><button class="s-btn s-btn--white" disabled>Disabled</button></div>
+<div class="s-row" style="gap: 14px"><span class="s-cap">Glass pill</span><a class="s-btn s-btn--glass" href="#a">View on GitHub</a><a class="s-btn s-btn--glass s-btn--sm" href="#a">Deny</a><a class="s-btn s-btn--ghost" href="#a">Sign in</a></div>
+</div></div></div>
+</section><section class="s-spec" id="c17">
+<div class="s-spec-head"><h3 class="s-spec-title">Thinking orbs and status dots</h3><span class="s-src">Based on larsen66/thinking-orbs, edwinvakayil/status-dot</span></div>
+<p class="s-note">Click the bar to see the steps the agent took.</p>
+<div class="s-stage"><div class="s-photo s-photo--blur" style="padding: 48px"><div class="s-row" style="gap: 40px; align-items: flex-start">
+<div class="s-col" style="gap: 14px; flex: 1 1 460px"><span class="s-cap">Thinking orbs, with the agent's steps</span><div class="s-trace-card s-glass">
+<button class="s-trace-head" aria-expanded="{{thinkOpen}}" onClick="{{toggleThink}}"><span class="s-orbs" aria-hidden="true"><i></i><i></i><i></i></span><span class="s-think-t">Working on it</span><span class="s-muted" style="font-size: 13px">4 steps</span><span class="s-trace-chev {{thinkChev}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></button>
+<sc-if value="{{thinkOpen}}" hint-placeholder-val="{{true}}">
+<ol class="s-trace">
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Read 12 new emails</span><span class="s-badge">Gmail: search</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Picked out 3 from clients</span></li>
+<li class="is-done"><span class="s-trace-ic"><svg class="s-ic s-ic--12" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Drafted 2 replies</span><span class="s-badge">Gmail: draft</span></li>
+<li class="is-now"><span class="s-trace-ic"><span class="s-ring" style="width: 12px; height: 12px; border-width: 1.5px"></span></span><span>Waiting for your approval to send 1 reply</span><span class="s-badge">Gmail: send</span></li>
+</ol>
+</sc-if>
+</div></div>
+<div class="s-col" style="gap: 14px"><span class="s-cap">Status dots</span><span class="s-badge"><span class="s-sdot s-sdot--live"></span>Online</span><span class="s-badge"><span class="s-sdot s-sdot--busy"></span>Needs approval</span><span class="s-badge"><span class="s-sdot s-sdot--off"></span>Disconnected</span><span class="s-badge"><span class="s-sdot"></span>Idle</span></div>
+</div></div></div>
+</section><section class="s-spec" id="c18">
+<div class="s-spec-head"><h3 class="s-spec-title">Icon tiles</h3><span class="s-src">Based on shadcnspace/social-icon</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 48px"><div class="s-row" style="gap: 14px"><a class="s-social s-social--lg" href="#Gmail" aria-label="Gmail"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></a><a class="s-social s-social--lg" href="#Calendar" aria-label="Calendar"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></a><a class="s-social s-social--lg" href="#Drive" aria-label="Drive"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg></a><a class="s-social s-social--lg" href="#WhatsApp" aria-label="WhatsApp"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg></a><a class="s-social s-social--lg" href="#Telegram" aria-label="Telegram"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></a><a class="s-social s-social--lg" href="#GitHub" aria-label="GitHub"><svg class="s-ic s-ic--20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.3 6.4-1.5 6.4-7A5.4 5.4 0 0 0 20 4.8 5 5 0 0 0 19.9 1S18.7.7 16 2.5a13.4 13.4 0 0 0-7 0C6.3.7 5.1 1 5.1 1A5 5 0 0 0 5 4.8a5.4 5.4 0 0 0-1.5 3.7c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V22"/></svg></a></div></div></div>
+</section><section class="s-spec" id="c19">
+<div class="s-spec-head"><h3 class="s-spec-title">Expanding search</h3><span class="s-src">Based on moumensoliman/expanding-search-dock-shadcnui</span></div>
+<p class="s-note">Click the magnifier to open the field.</p>
+<div class="s-stage"><div class="s-photo s-photo--clouds" style="padding: 56px; display: grid; place-items: center; min-height: 200px"><div class="s-sdock s-glass {{searchCls}}">
+<button class="s-icb" aria-label="Search integrations" aria-expanded="{{searchOpen}}" onClick="{{toggleSearch}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+<label for="s-sdock-in" class="s-sr">Search integrations</label>
+<input id="s-sdock-in" class="s-sdock-in" placeholder="Check if we support your tool…" tabindex="{{searchTab}}">
+<button class="s-icb s-sdock-x" aria-label="Close search" onClick="{{toggleSearch}}" tabindex="{{searchTab}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</div></div></div>
+</section><section class="s-spec" id="c20">
+<div class="s-spec-head"><h3 class="s-spec-title">Spinner</h3><span class="s-src">Based on theshanelevine/loading-state</span></div>
+
+<div class="s-stage"><div class="s-photo s-photo--dim" style="padding: 56px"><div class="s-row" style="gap: 40px"><span class="s-ring" style="width: 16px; height: 16px" role="status" aria-label="Loading"></span><span class="s-ring" role="status" aria-label="Loading"></span><span class="s-ring" style="width: 44px; height: 44px; border-width: 3px" role="status" aria-label="Loading"></span></div></div></div>
+</section><section class="s-spec" id="c22">
+<div class="s-spec-head"><h3 class="s-spec-title">Fade in on load</h3><span class="s-src">Based on dillionverma/blur-fade</span></div>
+
+<div class="s-stage"><div class="s-row" style="gap: 16px; align-items: flex-start">
+<sc-if value="{{fadeOn}}" hint-placeholder-val="{{true}}"><div class="s-col" style="gap: 10px"><span class="s-bf s-chip" style="align-self: flex-start">Fades in first</span><span class="s-bf s-bf1 s-chip" style="align-self: flex-start">then this</span><span class="s-bf s-bf2 s-chip" style="align-self: flex-start">then this, 120ms apart</span></div></sc-if>
+<button class="s-btn s-btn--glass s-btn--sm" onClick="{{replay}}"><svg class="s-ic " viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>Replay</button>
+</div></div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":10400}}'>
+var AS_TOOLS = [["Gmail","mail"],["Google Calendar","cal"],["Google Drive","folder"],["WhatsApp","msg"],["Telegram","send"],["Google Sheets","table"],["Google Docs","file"],["Slack","hash"],["Notion","book"],["GitHub","gh"],["Outlook","mail"],["Discord","msg"],["Trello","tasks"],["Asana","tasks"],["HubSpot","users"],["Jira","tasks"],["Linear","flow"],["Dropbox","cloud"],["Zoom","video"],["Airtable","table"],["Shopify","cart"],["Stripe","card"],["Salesforce","cloud"],["Calendly","cal"],["Figma","layout"],["X","x-logo"],["LinkedIn","in"],["YouTube","video"],["Todoist","tasks"],["Mailchimp","mail"],["Intercom","msg"],["Webhooks","plug"]];
+var AS_TEXT = "An agent that reads my inbox every morning and drafts replies to anything from clients.";
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { navOpen: true, search: true, think: false, canvas: false, halo: 0, faq: 0, searchOpen: false, fadeOn: true, thinkOpen: true, st0: false, st1: false, st2: false, typed: 0, ap: 0, tick: 0, iout: false }; this.timers = []; }
+  componentDidMount() {
+    var self = this, T = this.timers;
+    T.push(setInterval(function () { self.setState({ faq: (self.state.faq + 1) % 5 }); }, 6000));
+    T.push(setInterval(function () { self.setState({ iout: true }); setTimeout(function () { self.setState({ tick: self.state.tick + 1, iout: false }); }, 420); }, 2000));
+    T.push(setInterval(function () { if (!self.state.st0) return; var n = self.state.typed; self.setState({ typed: n >= AS_TEXT.length + 50 ? 0 : n + 1 }); }, 45));
+    T.push(setInterval(function () { if (!self.state.st2) return; self.setState({ ap: (self.state.ap + 1) % 4 }); }, 1500));
+    var els = document.querySelectorAll("[data-step]");
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (entries) { entries.forEach(function (e) { if (e.isIntersecting) { var o = {}; o["st" + e.target.getAttribute("data-step")] = true; self.setState(o); } }); }, { threshold: 0.35 });
+      els.forEach(function (el) { io.observe(el); });
+      this.io = io;
+    } else { this.setState({ st0: true, st1: true, st2: true }); }
+  }
+  componentWillUnmount() { this.timers.forEach(clearInterval); if (this.io) this.io.disconnect(); }
+  renderVals() {
+    var s = this.state, self = this;
+    var qs = [
+      ["What does YOLO mode do?", "You write one sentence and we pick the tools, files and prompt for you. You can change any of it later in the agent's settings."],
+      ["Can my agent send email on its own?", "Only after you approve it. Sends, posts and deletes show you the tool, the reason and the exact details, and wait for Approve or Deny."],
+      ["What can I connect?", "Gmail, WhatsApp, Telegram and the other services listed under Integrations. You sign in once and can disconnect at any time."],
+      ["Can I put an agent on my website?", "Yes. Every agent has a public chat link, a QR code and an embed snippet you paste into your page."],
+      ["Is Agent Studio open source?", "Yes. The code is on GitHub."]
+    ];
+    var hl = ["YOLO", "Manual", "Workflow", "Chat"];
+    function flip(k) { return function () { var o = {}; o[k] = !self.state[k]; self.setState(o); }; }
+    var POS = ["lt", "lm", "lb", "rt", "rm", "rb"];
+    function slot(k) { var t = AS_TOOLS[(s.tick * 6 + k) % AS_TOOLS.length]; return { name: t[0], href: "#i-" + t[1], cls: s.iout ? "is-out" : "", delay: (k * 60) + "ms", pos: POS[k] }; }
+    var AP = [["Waiting for your approval", "s-sdot--busy", "Expires in 2:41", ""], ["Waiting for your approval", "s-sdot--busy", "Expires in 2:40", "is-press"], ["Approved, sending…", "s-sdot--busy", "Sending", ""], ["Sent to Dana", "s-sdot--live", "Done", "is-sent"]];
+    var ap = AP[s.ap];
+    return {
+      navOpen: s.navOpen, toggleNav: flip("navOpen"),
+      tSearch: s.search ? "is-on" : "", tThink: s.think ? "is-on" : "", tCanvas: s.canvas ? "is-on" : "",
+      pSearch: s.search, pThink: s.think, pCanvas: s.canvas,
+      togSearch: flip("search"), togThink: flip("think"), togCanvas: flip("canvas"),
+      halos: hl.map(function (l, k) { return { label: l, on: s.halo === k, cls: s.halo === k ? "is-on" : "", pick: function () { self.setState({ halo: k }); } }; }),
+      haloX: (s.halo * 100) + "%",
+      faqs: qs.map(function (x, k) { return { q: x[0], on: s.faq === k, cls: s.faq === k ? "is-on" : "", pick: function () { clearInterval(self.timers[0]); self.setState({ faq: k }); self.timers[0] = setInterval(function () { self.setState({ faq: (self.state.faq + 1) % 5 }); }, 6000); } }; }),
+      faqQ: qs[s.faq][0], faqA: qs[s.faq][1], faqPct: ((s.faq + 1) * 20) + "%",
+      searchOpen: s.searchOpen, searchCls: s.searchOpen ? "is-open" : "", searchTab: s.searchOpen ? "0" : "-1", toggleSearch: flip("searchOpen"),
+      fadeOn: s.fadeOn,
+      replay: function () { self.setState({ fadeOn: false }); setTimeout(function () { self.setState({ fadeOn: true }); }, 60); },
+      noSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); },
+      thinkOpen: s.thinkOpen, thinkChev: s.thinkOpen ? "is-open" : "", toggleThink: flip("thinkOpen"),
+      st0: s.st0 ? "is-in" : "", st1: s.st1 ? "is-in" : "", st2: s.st2 ? "is-in" : "",
+      typed: AS_TEXT.slice(0, Math.min(s.typed, AS_TEXT.length)),
+      apTitle: ap[0], apDot: ap[1], apBadge: ap[2], apCls: ap[3],
+      slotsT: [slot(0), slot(1)], slotsM1: [slot(2)], slotsM2: [slot(3)], slotsB: [slot(4), slot(5)]
+    };
+  }
+}
+</script>
+</body>
+</html>
