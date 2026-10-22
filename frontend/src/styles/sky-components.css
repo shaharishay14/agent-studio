@@ -1,0 +1,284 @@
+/* Sky component styles that need keyframes, masks or pseudo-elements.
+   Copied from docs/design/reference/sky.css; layout lives in Tailwind classes.
+   The global prefers-reduced-motion rule in index.css stops all of these. */
+
+/* Conic glow behind the prompt box: warm, blue, ember, white; rotates every 9s */
+@property --sky-a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.sky-prompt-glow {
+  position: absolute;
+  inset: -18px;
+  border-radius: 44px;
+  background: conic-gradient(
+    from var(--sky-a, 0deg),
+    rgba(230, 176, 109, 0.75),
+    rgba(127, 166, 196, 0.7),
+    rgba(201, 87, 61, 0.65),
+    rgba(255, 255, 255, 0.55),
+    rgba(230, 176, 109, 0.75)
+  );
+  filter: blur(30px);
+  opacity: 0.75;
+  animation: sky-glow-spin 9s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sky-glow-spin {
+  to {
+    --sky-a: 360deg;
+  }
+}
+
+/* Liquid metal: animated metallic border only, dark glass inside */
+.sky-metal {
+  position: relative;
+  isolation: isolate;
+  background: rgba(10, 14, 20, 0.55);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+}
+
+.sky-metal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(115deg, #8d939b 0%, #f4f6f8 18%, #a7adb5 32%, #ffffff 46%, #7f858d 60%, #e9ecef 76%, #9aa0a8 100%);
+  background-size: 250% 100%;
+  animation: sky-metal 4s ease-in-out infinite alternate;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes sky-metal {
+  to {
+    background-position: 100% 0;
+  }
+}
+
+/* Flow button: a white circle grows to fill the pill on hover */
+.sky-flow {
+  isolation: isolate;
+}
+
+.sky-flow-fill {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  transition: width 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+  z-index: -1;
+}
+
+.sky-flow:hover .sky-flow-fill,
+.sky-flow:focus-visible .sky-flow-fill {
+  width: calc(100% - 12px);
+}
+
+.sky-flow-text {
+  transition: color 0.3s 0.05s;
+}
+
+.sky-flow-arrow {
+  transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.sky-flow:hover .sky-flow-arrow,
+.sky-flow:focus-visible .sky-flow-arrow {
+  transform: translateX(4px);
+}
+
+/* Status dot: live and busy pulse */
+.sky-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sky-dot[data-status="live"] {
+  background: var(--sky-live);
+}
+
+.sky-dot[data-status="busy"] {
+  background: var(--sky-busy);
+}
+
+.sky-dot[data-status="off"] {
+  background: var(--sky-off);
+}
+
+.sky-dot[data-status="live"]::after,
+.sky-dot[data-status="busy"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: sky-ping 1.8s ease-out infinite;
+}
+
+@keyframes sky-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  80%,
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+/* Thinking orb: warm, blue and white blobs drifting inside a small circle */
+.sky-orbs {
+  position: relative;
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+  background: var(--sky-night-2);
+  box-shadow: 0 0 18px rgba(255, 215, 168, 0.45);
+}
+
+.sky-orbs i {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  filter: blur(5px);
+  left: 3px;
+  top: 3px;
+  animation: sky-orb 2.4s ease-in-out infinite;
+}
+
+.sky-orbs i:nth-child(1) {
+  background: #ffb870;
+}
+
+.sky-orbs i:nth-child(2) {
+  background: #7fa6c4;
+  animation-delay: -0.8s;
+}
+
+.sky-orbs i:nth-child(3) {
+  background: #ffffff;
+  width: 12px;
+  height: 12px;
+  left: 7px;
+  top: 7px;
+  animation-delay: -1.6s;
+}
+
+@keyframes sky-orb {
+  0%,
+  100% {
+    transform: translate(-6px, -4px) scale(0.9);
+  }
+  33% {
+    transform: translate(6px, -2px) scale(1.1);
+  }
+  66% {
+    transform: translate(0, 6px) scale(0.95);
+  }
+}
+
+/* Shimmering "Working on it" text */
+.sky-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0%, #ffffff 50%, rgba(255, 255, 255, 0.55) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sky-shimmer 1.8s linear infinite;
+}
+
+@keyframes sky-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Typing caret */
+.sky-caret {
+  display: inline-block;
+  width: 2px;
+  height: 22px;
+  margin-left: 2px;
+  vertical-align: -4px;
+  background: #ffffff;
+  animation: sky-blink 1s steps(1) infinite;
+}
+
+@keyframes sky-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Integrations cluster: outer tiles fade toward the edges */
+.sky-i3-mask {
+  -webkit-mask-image: radial-gradient(ellipse 62% 62% at 50% 50%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 62% 62% at 50% 50%, #000 55%, transparent 100%);
+}
+
+.sky-i3-icon {
+  transition: opacity 0.35s, transform 0.35s, filter 0.35s;
+}
+
+.sky-i3-icon[data-out="true"] {
+  opacity: 0;
+  transform: scale(0.8);
+  filter: blur(4px);
+}
+
+/* Feature grid hover: left bar grows white, title slides 8px, soft fill */
+.sky-feature::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.sky-feature[data-row="2"]::before {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.sky-feature:hover::before {
+  opacity: 1;
+}
+
+.sky-feature-bar {
+  transition: height 0.25s, background-color 0.25s;
+}
+
+.sky-feature:hover .sky-feature-bar {
+  height: 32px;
+  background: #ffffff;
+}
+
+.sky-feature-title {
+  transition: transform 0.25s;
+}
+
+.sky-feature:hover .sky-feature-title {
+  transform: translateX(8px);
+}
