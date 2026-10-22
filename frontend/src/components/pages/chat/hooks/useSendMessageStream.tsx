@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import type { Message, ToolApprovalRequest, ApprovalDecision } from '../types';
 import { decideToolApproval } from '../requests';
+import { formatToolName } from '../utils';
+import type { TraceStep } from '@/components/ui/thinking-trace';
 
 // פונקציה לקריאת cookie
 function getCookie(name: string): string | null {
@@ -23,14 +25,14 @@ interface StatusData {
 
 interface ToolCallStartData {
   tool: string;
-  parameters: any;
+  parameters: unknown;
   timestamp: string;
 }
 
 interface ToolCallResultData {
   tool: string;
   success: boolean;
-  result?: any;
+  result?: unknown;
   error?: string;
   timestamp: string;
 }
@@ -56,6 +58,31 @@ export const useSendMessageStream = (agentId: string) => {
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(null);
   const [isDecidingApproval, setIsDecidingApproval] = useState(false);
+  // The current turn's agent loop steps (tool calls, approvals), for the thinking trace
+  const [steps, setSteps] = useState<TraceStep[]>([]);
+  const stepIdRef = useRef(0);
+
+  const addStep = useCallback((step: Omit<TraceStep, 'id'>) => {
+    stepIdRef.current += 1;
+    const id = String(stepIdRef.current);
+    setSteps((prev) => [...prev, { ...step, id }]);
+  }, []);
+
+  // Update the most recent running step for this tool
+  const finishStep = useCallback((tool: string, patch: Partial<TraceStep>) => {
+    setSteps((prev) => {
+      const index = prev.map((step) => step.tool).lastIndexOf(formatToolName(tool));
+      if (index === -1 || prev[index].status !== 'running') return prev;
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  }, []);
+
+  // When the turn ends, nothing is still running (a stream error or Stop marks them failed)
+  const settleSteps = useCallback((status: TraceStep['status'] = 'done') => {
+    setSteps((prev) => prev.map((step) => (step.status === 'running' ? { ...step, status } : step)));
+  }, []);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // מחרוזת את התוכן הנוכחי מה-stream
@@ -141,6 +168,7 @@ export const useSendMessageStream = (agentId: string) => {
     setIsSending(true);
     setIsStreamingResponse(true);
     setStatus('');
+    setSteps([]);
     streamingContentRef.current = '';
     setCurrentStreamingContent('');
     chunksQueueRef.current = [];
@@ -217,40 +245,47 @@ export const useSendMessageStream = (agentId: string) => {
 
         onmessage(event) {
           const eventType = event.event || 'message';
-          let data: any;
+          let data: unknown;
 
           try {
             data = JSON.parse(event.data);
-          } catch (e) {
+          } catch {
             data = event.data;
           }
 
           switch (eventType) {
-            case 'status':
+            case 'status': {
               const statusData = data as StatusData;
               setStatus(statusData.message);
               break;
+            }
 
-            case 'tool_call_start':
+            case 'tool_call_start': {
               const toolStartData = data as ToolCallStartData;
               setStatus(`Running ${toolStartData.tool}...`);
+              addStep({ label: 'Using', tool: formatToolName(toolStartData.tool), status: 'running' });
               break;
+            }
 
-            case 'tool_call_result':
+            case 'tool_call_result': {
               const toolResultData = data as ToolCallResultData;
               if (toolResultData.success) {
                 setStatus(`${toolResultData.tool} completed successfully`);
+                finishStep(toolResultData.tool, { label: 'Used', status: 'done' });
               } else {
                 setStatus(`Error running ${toolResultData.tool}`);
+                finishStep(toolResultData.tool, { label: 'Failed', status: 'error' });
               }
               break;
+            }
 
-            case 'content_delta':
+            case 'content_delta': {
               const contentData = data as ContentDeltaData;
               addChunkToQueue(contentData.content);
               break;
+            }
 
-            case 'message_complete':
+            case 'message_complete': {
               const completeData = data as MessageCompleteData;
               
               // ניקוי מיידי של כל ה-streaming
@@ -273,10 +308,12 @@ export const useSendMessageStream = (agentId: string) => {
               // עדכון מספר ההודעות של האייג'נט
               queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
               break;
+            }
 
             case 'done':
               
               setPendingApproval(null);
+              settleSteps('done');
               setStatus('');
               setIsSending(false);
               
@@ -284,11 +321,12 @@ export const useSendMessageStream = (agentId: string) => {
               clearStreaming();
               break;
 
-            case 'error':
+            case 'error': {
               const errorData = data as { error: string; details?: string };
               console.error('❌ שגיאה מהשרת:', errorData.error);
               toast.error(errorData.error);
               throw new Error(errorData.error);
+            }
 
             case 'heartbeat':
               // סתם keep-alive, לא צריך לעשות כלום
@@ -297,11 +335,13 @@ export const useSendMessageStream = (agentId: string) => {
             case 'approval_required':
               setPendingApproval(data as ToolApprovalRequest);
               setStatus('Waiting for your approval...');
+              addStep({ label: 'Waiting for your approval', tool: formatToolName((data as ToolApprovalRequest).tool), status: 'running' });
               break;
 
             case 'approval_resolved':
               // The server stopped waiting (e.g. timed out) - hide the card
               setPendingApproval(null);
+              setSteps((prev) => prev.map((step) => (step.label === 'Waiting for your approval' && step.status === 'running' ? { ...step, label: 'Approval expired', status: 'error' } : step)));
               break;
           }
         },
@@ -309,6 +349,7 @@ export const useSendMessageStream = (agentId: string) => {
         onerror(error) {
           console.error('❌ שגיאת Stream:', error);
           setPendingApproval(null);
+          settleSteps('error');
 
           // ניקוי מלא
           clearStreaming();
@@ -344,7 +385,7 @@ export const useSendMessageStream = (agentId: string) => {
       setIsSending(false);
       setStatus('');
     }
-  }, [agentId, queryClient, isSending, clearStreaming, addChunkToQueue]);
+  }, [agentId, queryClient, isSending, clearStreaming, addChunkToQueue, addStep, finishStep, settleSteps]);
 
   // Approve or deny the action the agent is waiting on
   const respondToApproval = useCallback(async (decision: ApprovalDecision) => {
@@ -353,13 +394,14 @@ export const useSendMessageStream = (agentId: string) => {
     try {
       await decideToolApproval(agentId, pendingApproval.approval_id, decision);
       setStatus(decision === 'approve' ? 'Approved - running action...' : 'Declined');
+      finishStep(pendingApproval.tool, decision === 'approve' ? { label: 'You approved', status: 'done' } : { label: 'You declined', status: 'error' });
     } catch {
       toast.error('This approval is no longer pending');
     } finally {
       setPendingApproval(null);
       setIsDecidingApproval(false);
     }
-  }, [agentId, pendingApproval]);
+  }, [agentId, pendingApproval, finishStep]);
 
   // פונקציה לשליחת הודעה מהשדה
   const onSendMessage = useCallback(() => {
@@ -388,7 +430,8 @@ export const useSendMessageStream = (agentId: string) => {
     // ניקוי state
     setIsSending(false);
     setStatus('');
-  }, [clearStreaming]);
+    settleSteps('error');
+  }, [clearStreaming, settleSteps]);
 
   return {
     // State
@@ -400,6 +443,7 @@ export const useSendMessageStream = (agentId: string) => {
     isStreamingResponse,
     pendingApproval,
     isDecidingApproval,
+    steps,
     
     // Functions
     handleSendMessage,

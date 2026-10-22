@@ -1,7 +1,7 @@
-import useDarkModeStore from '../../../../../store/darkmode.store';
 import useModalsStore from '../../../../../store/modals.store';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { useGetAgentMessages, useSendMessageStream } from '../hooks';
-import { LoadingState, ErrorState } from '../../../shared/components';
 import type { Agent } from '../types';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessages } from './ChatMessages';
@@ -10,86 +10,88 @@ import { ChatInputArea } from './ChatInputArea';
 interface ChatAreaProps {
   agentId: string;
   agent?: Agent;
-  onToggleSidebar: () => void;
-  isSidebarOpen: boolean;
+  isSettingsOpen: boolean;
+  onToggleSettings: () => void;
   suggestedPrompts?: string[];
 }
 
-function ChatArea({ agentId, agent, onToggleSidebar, isSidebarOpen, suggestedPrompts = [] }: ChatAreaProps) {
-  const { isDarkMode } = useDarkModeStore();
+function ChatArea({ agentId, agent, isSettingsOpen, onToggleSettings, suggestedPrompts = [] }: ChatAreaProps) {
   const { openResetMemoryModal, openShareAgentModal, openTelegramBotModal } = useModalsStore();
-  
+
   // שליפת ההודעות
-  const { messages, isLoading: isLoadingMessages, isError: isErrorMessages } = useGetAgentMessages(agentId);
-  
+  const { messages, isLoading: isLoadingMessages, isError: isErrorMessages, refetch } = useGetAgentMessages(agentId);
+
   // שליחת הודעה עם streaming (כולל state ופונקציות)
-  const { 
-    messageText, 
+  const {
+    messageText,
     setMessageText,
-    handleSendMessage, 
+    handleSendMessage,
+    cancelSending,
     isSending,
-    status,
     currentStreamingContent,
     isStreamingResponse,
     pendingApproval,
     isDecidingApproval,
-    respondToApproval
+    respondToApproval,
+    steps,
   } = useSendMessageStream(agentId);
-  
-  // שימוש ב-agent שהתקבל כ-prop
-  const agentData = agent;
-
-  // הצגת loading
-  if (isLoadingMessages) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <LoadingState />
-      </div>
-    );
-  }
-
-  // הצגת שגיאה
-  if (isErrorMessages) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <ErrorState message="Error loading messages" />
-      </div>
-    );
-  }
 
   return (
-    <div className="flex-1 flex flex-col relative transition-all duration-300 ease-in-out">
-      <ChatHeader 
-        isDarkMode={isDarkMode}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={onToggleSidebar}
-        agentData={agentData}
+    <div className="flex h-full min-h-0 flex-col">
+      <ChatHeader
+        agentData={agent}
         agentId={agentId}
+        isWorking={isSending}
+        needsApproval={!!pendingApproval}
+        isSettingsOpen={isSettingsOpen}
+        onToggleSettings={onToggleSettings}
         openResetMemoryModal={openResetMemoryModal}
         openShareAgentModal={openShareAgentModal}
         openTelegramBotModal={openTelegramBotModal}
       />
 
-      <ChatMessages 
-        isDarkMode={isDarkMode}
-        messages={messages}
-        agentData={agentData}
-        setMessageText={setMessageText}
-        isStreamingResponse={isStreamingResponse}
-        currentStreamingContent={currentStreamingContent}
-        status={status}
-        pendingApproval={pendingApproval}
-        isDecidingApproval={isDecidingApproval}
-        onApprovalDecision={respondToApproval}
-      />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {isLoadingMessages && (
+          <div className="grid h-full place-items-center">
+            <Spinner label="Loading messages" />
+          </div>
+        )}
 
-      <ChatInputArea 
-        isDarkMode={isDarkMode}
+        {isErrorMessages && (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center" role="alert">
+            <p className="m-0 text-white/80">We couldn't load this conversation.</p>
+            <Button variant="glass" size="sm" onClick={() => refetch()}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!isLoadingMessages && !isErrorMessages && (
+          <ChatMessages
+            messages={messages}
+            agentData={agent}
+            setMessageText={setMessageText}
+            suggestedPrompts={suggestedPrompts}
+            isSending={isSending}
+            isStreamingResponse={isStreamingResponse}
+            currentStreamingContent={currentStreamingContent}
+            steps={steps}
+            pendingApproval={pendingApproval}
+            isDecidingApproval={isDecidingApproval}
+            onApprovalDecision={respondToApproval}
+          />
+        )}
+      </div>
+
+      <ChatInputArea
+        agentName={agent?.name}
         messageText={messageText}
         setMessageText={setMessageText}
         handleSendMessage={handleSendMessage}
+        onStop={cancelSending}
         isSending={isSending}
         suggestedPrompts={suggestedPrompts}
+        showSuggestions={messages.length > 0}
       />
     </div>
   );

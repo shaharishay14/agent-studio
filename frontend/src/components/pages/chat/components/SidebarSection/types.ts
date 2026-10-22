@@ -6,7 +6,6 @@ export interface SectionProps {
   subtitle: string;
   isExpanded: boolean;
   onToggle: () => void;
-  iconBgColor: string;
   agentName: string;
   setAgentName: (name: string) => void;
   agentPrompt: string;

@@ -21,6 +21,8 @@ function Root() {
     const { pathname } = useLocation();
     // The Sky landing draws its own nav over the hero photo; the auth shell has its own logo
     const hasOwnNav = pathname === "/" || pathname === "/builder" || pathname.startsWith("/auth");
+    // The agent chat page has its own composer; the support chat button would sit on top of it
+    const showSupportChat = !pathname.startsWith("/chat/");
 
     return (
         <Layout>
@@ -28,7 +30,7 @@ function Root() {
             <Suspense fallback={<PageLoader />}>
                 <Outlet />
             </Suspense>
-            <Chatbot />
+            {showSupportChat && <Chatbot />}
         </Layout>
     )
 }

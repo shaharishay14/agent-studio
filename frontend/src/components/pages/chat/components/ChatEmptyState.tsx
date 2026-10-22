@@ -1,62 +1,34 @@
+import { BlurFade } from '@/components/ui/blur-fade';
+import { Chip } from '@/components/ui/chip';
+import { AgentAvatar } from '../../../sky/AgentAvatar';
 import type { Agent } from '../types';
-import { formatAvatarUrl } from '../utils';
 
 interface ChatEmptyStateProps {
-  isDarkMode: boolean;
   agentData?: Agent;
+  suggestedPrompts: string[];
   setMessageText: (text: string) => void;
 }
 
-export const ChatEmptyState = ({ isDarkMode, agentData, setMessageText }: ChatEmptyStateProps) => {
-  const avatarUrl = formatAvatarUrl(agentData?.avatar_base64);
-  
+// New conversation: the agent, one line about it, and the suggested prompts (when the API has them)
+export const ChatEmptyState = ({ agentData, suggestedPrompts, setMessageText }: ChatEmptyStateProps) => {
   return (
-    <>
-      <div className="text-center py-12">
-        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 overflow-hidden ${
-          isDarkMode
-            ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30'
-            : 'bg-gradient-to-br from-purple-400 to-pink-500 border-2 border-purple-300 shadow-2xl'
-        }`}>
-          {avatarUrl ? (
-            <img 
-              src={avatarUrl}
-              alt={agentData?.name || 'Agent'}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            '🤖'
-          )}
-        </div>
-        <h2 className={`text-2xl font-bold mb-2 ${
-          isDarkMode ? 'text-white' : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
-        }`}>
-          {agentData?.name || 'Agent'}
+    <div className="mx-auto flex min-h-full w-full max-w-[640px] flex-col items-center justify-center gap-5 px-6 py-12 text-center">
+      <BlurFade className="flex flex-col items-center gap-4">
+        {agentData && <AgentAvatar id={agentData.id} avatar={agentData.avatar_base64} size={64} className="shadow-[0_0_0_8px_rgba(255,255,255,0.08)]" />}
+        <h2 className="m-0 font-display text-[32px] leading-9 font-medium tracking-[-0.03em]">
+          Start a chat with <em className="sky-serif">{agentData?.name || 'your agent'}</em>
         </h2>
-        <p className={`mb-8 ${
-          isDarkMode ? 'text-gray-400' : 'text-gray-700'
-        }`}>
-          Start chatting with your agent
-        </p>
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="flex flex-wrap gap-3 justify-center mb-8">
-        {['What are the best reviews from Israeli magazines?', 'Which phones are cheaper?', 'Recommend products on sale today?'].map((text, i) => (
-          <button 
-            key={i} 
-            onClick={() => setMessageText(text)}
-            className={`px-4 py-2 rounded-full text-sm transition-all duration-200 ${
-              isDarkMode
-                ? 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.1] text-gray-300'
-                : 'bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 border border-purple-300 text-purple-700'
-            }`}
-          >
-            {text}
-          </button>
-        ))}
-      </div>
-    </>
+        {agentData?.prompt && <p className="m-0 line-clamp-2 max-w-[52ch] text-white/72">{agentData.prompt}</p>}
+      </BlurFade>
+      {suggestedPrompts.length > 0 && (
+        <BlurFade delay={0.12} className="flex flex-wrap justify-center gap-2.5">
+          {suggestedPrompts.slice(0, 3).map((prompt) => (
+            <Chip key={prompt} onClick={() => setMessageText(prompt)} className="h-auto min-h-[38px] py-2 text-left whitespace-normal">
+              {prompt}
+            </Chip>
+          ))}
+        </BlurFade>
+      )}
+    </div>
   );
 };
-

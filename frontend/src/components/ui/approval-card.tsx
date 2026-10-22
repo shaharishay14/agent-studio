@@ -69,7 +69,7 @@ export function ApprovalCard({
           {toolDetail && <span className="truncate text-[13px] text-white/72">{toolDetail}</span>}
         </span>
       </div>
-      {preview && <p className="m-0 rounded-2xl bg-night/30 px-3.5 py-3 text-sm leading-[21px] text-white/90">{preview}</p>}
+      {preview && <p className="m-0 max-h-48 overflow-y-auto rounded-2xl bg-night/30 px-3.5 py-3 text-sm leading-[21px] break-words whitespace-pre-wrap text-white/90">{preview}</p>}
       {children}
       <div className="flex justify-end gap-2">
         <Button variant="glass" size="sm" onClick={onDeny} disabled={deciding} tabIndex={demo ? -1 : undefined}>

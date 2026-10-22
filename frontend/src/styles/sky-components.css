@@ -282,3 +282,149 @@
 .sky-feature:hover .sky-feature-title {
   transform: translateX(8px);
 }
+
+/* Markdown inside chat bubbles */
+.sky-prose {
+  font-size: 15px;
+  line-height: 23px;
+  overflow-wrap: anywhere;
+}
+
+.sky-prose > :first-child {
+  margin-top: 0;
+}
+
+.sky-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.sky-prose p,
+.sky-prose ul,
+.sky-prose ol,
+.sky-prose pre,
+.sky-prose blockquote,
+.sky-prose table {
+  margin: 0 0 10px;
+}
+
+.sky-prose ul,
+.sky-prose ol {
+  padding-inline-start: 20px;
+}
+
+.sky-prose ul {
+  list-style: disc;
+}
+
+.sky-prose ol {
+  list-style: decimal;
+}
+
+.sky-prose li + li {
+  margin-top: 4px;
+}
+
+.sky-prose h1,
+.sky-prose h2,
+.sky-prose h3,
+.sky-prose h4 {
+  margin: 14px 0 6px;
+  font-family: var(--sky-font-display);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.sky-prose h1 {
+  font-size: 20px;
+}
+
+.sky-prose h2 {
+  font-size: 18px;
+}
+
+.sky-prose h3,
+.sky-prose h4 {
+  font-size: 16px;
+}
+
+.sky-prose a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+}
+
+.sky-prose strong {
+  font-weight: 600;
+}
+
+.sky-prose code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.sky-prose pre {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 14, 20, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow-x: auto;
+}
+
+.sky-prose pre code {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.sky-prose blockquote {
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.sky-prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.sky-prose th,
+.sky-prose td {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  text-align: start;
+}
+
+.sky-prose th {
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* User bubbles are white: dark ink for code and quotes */
+.sky-prose-ink code {
+  background: rgba(10, 14, 20, 0.08);
+}
+
+.sky-prose-ink pre {
+  background: rgba(10, 14, 20, 0.06);
+  border-color: rgba(10, 14, 20, 0.12);
+}
+
+.sky-prose-ink blockquote {
+  border-color: rgba(10, 14, 20, 0.3);
+  color: rgba(10, 14, 20, 0.75);
+}
+
+.sky-prose-ink th,
+.sky-prose-ink td {
+  border-color: rgba(10, 14, 20, 0.15);
+}
