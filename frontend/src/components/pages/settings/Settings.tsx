@@ -1,34 +1,32 @@
-import useDarkModeStore from '../../../../store/darkmode.store'
 import { useGetCredits } from './hooks'
-import { SettingsHeader, AccountInformation, CreditsCard } from './components'
+import { AccountInformation, CreditsCard } from './components'
+import { HeaderBand } from '../../sky/HeaderBand'
+import { BlurFade } from '@/components/ui/blur-fade'
 
 function Settings() {
-  const { isDarkMode } = useDarkModeStore()
-  const { credits, isLoading: isLoadingCredits } = useGetCredits()
+  const { credits, isLoading: isLoadingCredits, isError: isCreditsError, refetch } = useGetCredits()
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      isDarkMode ? 'bg-[#0a0a0a]' : 'bg-gradient-to-br from-purple-50 via-white to-pink-50'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-12">
-        <SettingsHeader />
+    <div className="min-h-screen bg-night text-white">
+      <HeaderBand eyebrow="Settings" title="Your" accent="account" subtitle="Your profile, plan and monthly credits." />
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <main className="mx-auto max-w-[1280px] px-4 pt-4 pb-20 sm:px-6 lg:px-10">
+        <BlurFade className="grid gap-5 lg:grid-cols-2">
           <AccountInformation />
-          
-          <CreditsCard 
+
+          <CreditsCard
             totalCredits={credits?.total_credits ?? 0}
             creditsUsed={credits?.credits_used ?? 0}
             creditRefreshDate={credits?.credit_refresh_date}
             nextRefreshDate={credits?.next_refresh_date}
             isLoading={isLoadingCredits}
+            isError={isCreditsError}
+            onRetry={() => refetch()}
           />
-        </div>
-      </div>
+        </BlurFade>
+      </main>
     </div>
   )
 }
 
 export default Settings
-
