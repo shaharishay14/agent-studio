@@ -1,74 +1,214 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------------------------------------------------------------------------
+   Agent Studio "Sky" tokens (docs/design/tokens.css). Sky is dark only.
+   --------------------------------------------------------------------------- */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.5rem;
-  --chart-1: 12 76% 61%;
-  --chart-2: 173 58% 39%;
-  --chart-3: 197 37% 24%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 27 87% 67%;
+  /* Surfaces */
+  --sky-night: #0a0e14;
+  --sky-night-2: #0d1219;
+  --sky-night-3: #151d28;
+  --sky-side: #0c1119;
+
+  /* Photo palette: only for glows and highlights, never for UI fills */
+  --sky-dusk: #243e56;
+  --sky-haze: #7fa6c4;
+  --sky-glow: #e6b06d;
+  --sky-ember: #c9573d;
+
+  /* Text */
+  --sky-text: #ffffff;
+  --sky-text-muted: rgba(255, 255, 255, 0.72);
+  --sky-text-faint: rgba(255, 255, 255, 0.6);
+  --sky-text-on-white: #0a0e14;
+
+  /* Lines */
+  --sky-line: rgba(255, 255, 255, 0.1);
+  --sky-line-2: rgba(255, 255, 255, 0.14);
+  --sky-outline: rgba(255, 255, 255, 0.3);
+  --sky-outline-strong: rgba(255, 255, 255, 0.55);
+
+  /* Status */
+  --sky-live: #7ee2a8;
+  --sky-busy: #ffc46b;
+  --sky-off: #ff8a7a;
+
+  /* Radius */
+  --sky-r-pill: 999px;
+  --sky-r-card: 28px;
+  --sky-r-inner: 22px;
+  --sky-r-tile: 20px;
+
+  /* Type */
+  --sky-font-display: "Inter Tight", Inter, system-ui, sans-serif;
+  --sky-font-body: Inter, system-ui, sans-serif;
+  --sky-font-accent: "Instrument Serif", Georgia, serif;
+
+  /* Motion */
+  --sky-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* shadcn variables, pointed at Sky so installed components match */
+  --background: var(--sky-night);
+  --foreground: var(--sky-text);
+  --card: var(--sky-night-2);
+  --card-foreground: var(--sky-text);
+  --popover: var(--sky-night-2);
+  --popover-foreground: var(--sky-text);
+  --primary: #ffffff;
+  --primary-foreground: var(--sky-text-on-white);
+  --secondary: rgba(255, 255, 255, 0.1);
+  --secondary-foreground: var(--sky-text);
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: var(--sky-text-muted);
+  --accent: rgba(255, 255, 255, 0.12);
+  --accent-foreground: var(--sky-text);
+  --destructive: var(--sky-off);
+  --destructive-foreground: var(--sky-text-on-white);
+  --border: var(--sky-line-2);
+  --input: var(--sky-outline);
+  --ring: #ffffff;
+  --radius: 1.25rem;
+
+  color-scheme: dark;
 }
 
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 210 40% 98%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+/* Tailwind names for the tokens: bg-night, text-fg-muted, border-edge, rounded-card, font-display… */
+@theme inline {
+  --color-night: var(--sky-night);
+  --color-night-2: var(--sky-night-2);
+  --color-night-3: var(--sky-night-3);
+  --color-side: var(--sky-side);
+
+  --color-dusk: var(--sky-dusk);
+  --color-haze: var(--sky-haze);
+  --color-glow: var(--sky-glow);
+  --color-ember: var(--sky-ember);
+
+  --color-fg: var(--sky-text);
+  --color-fg-muted: var(--sky-text-muted);
+  --color-fg-faint: var(--sky-text-faint);
+  --color-on-white: var(--sky-text-on-white);
+
+  --color-line: var(--sky-line);
+  --color-line-2: var(--sky-line-2);
+  --color-edge: var(--sky-outline);
+  --color-edge-strong: var(--sky-outline-strong);
+
+  --color-live: var(--sky-live);
+  --color-busy: var(--sky-busy);
+  --color-off: var(--sky-off);
+
+  --radius-pill: var(--sky-r-pill);
+  --radius-card: var(--sky-r-card);
+  --radius-inner: var(--sky-r-inner);
+  --radius-tile: var(--sky-r-tile);
+
+  --font-sans: var(--sky-font-body);
+  --font-display: var(--sky-font-display);
+  --font-accent: var(--sky-font-accent);
+
+  --ease-sky: var(--sky-ease);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-* {
-  border-color: hsl(var(--border));
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    background-color: var(--sky-night);
+  }
+
+  body {
+    background-color: var(--sky-night);
+    color: var(--sky-text);
+    font-family: var(--sky-font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--sky-text-on-white);
+  }
 }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+/* The liquid-glass recipe: cards, nav, chips, approval card, pricing cards.
+   Only on top of the photos; on flat night use bg-night-2 instead. */
+@utility sky-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.7);
+  border: 1px solid var(--sky-outline);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 50px -20px rgba(0, 0, 0, 0.55);
 }
 
-/* Global scrollbar styling */
+/* Headline accent words */
+@utility sky-serif {
+  font-family: var(--sky-font-accent);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* The two photos */
+@utility bg-sky-clouds {
+  background: var(--sky-dusk) url(/assets/sky/sky-clouds.webp) center / cover;
+}
+
+@utility bg-sky-dusk {
+  background: #1a2a48 url(/assets/sky/sky-dusk.webp) center / cover;
+}
+
+/* Everything calms down for prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbars: thin white-alpha thumb */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 85, 247, 0.3) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -81,28 +221,17 @@ body {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.3), rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
-  border-radius: 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.6), rgba(168, 85, 247, 0.6), rgba(236, 72, 153, 0.6));
-  box-shadow: 0 0 16px rgba(168, 85, 247, 0.4), 0 0 8px rgba(34, 197, 94, 0.3);
+  background: rgba(255, 255, 255, 0.35);
 }
 
-.dark * {
-  scrollbar-color: rgba(168, 85, 247, 0.4) transparent;
-}
-
-.dark *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.4), rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.4));
-}
-
-.dark *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.7), rgba(168, 85, 247, 0.7), rgba(236, 72, 153, 0.7));
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 10px rgba(34, 197, 94, 0.4);
-}
+/* ---------------------------------------------------------------------------
+   Legacy styles below. Removed as each page moves to Sky.
+   --------------------------------------------------------------------------- */
 
 /* Grid Pattern Background */
 .bg-grid-pattern {
@@ -555,59 +684,34 @@ body {
   animation: gradient-x 3s ease infinite;
 }
 
-/* Sonner Toast Styles */
+/* Sonner toasts: Sky glass, status shown by a colored dot-like left edge */
 .sonner-toast {
-  background: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+  background: rgba(13, 18, 25, 0.82) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.7) !important;
+  backdrop-filter: blur(24px) saturate(1.7) !important;
+  color: var(--sky-text) !important;
+  border: 1px solid var(--sky-outline) !important;
+  border-radius: 22px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 20px 50px -20px rgba(0, 0, 0, 0.55) !important;
+  font-family: var(--sky-font-body) !important;
 }
 
-.sonner-success {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05)) !important;
-  border-color: rgba(34, 197, 94, 0.3) !important;
-  color: hsl(var(--foreground)) !important;
+.sonner-toast [data-description] {
+  color: var(--sky-text-muted) !important;
 }
 
-.sonner-error {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05)) !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
-  color: hsl(var(--foreground)) !important;
+.sonner-success [data-icon] {
+  color: var(--sky-live) !important;
 }
 
-.sonner-info {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05)) !important;
-  border-color: rgba(59, 130, 246, 0.3) !important;
-  color: hsl(var(--foreground)) !important;
+.sonner-error [data-icon] {
+  color: var(--sky-off) !important;
 }
 
-.sonner-warning {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)) !important;
-  border-color: rgba(245, 158, 11, 0.3) !important;
-  color: hsl(var(--foreground)) !important;
+.sonner-warning [data-icon] {
+  color: var(--sky-busy) !important;
 }
 
-.dark .sonner-toast {
-  background: hsl(var(--card)) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
-}
-
-.dark .sonner-success {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08)) !important;
-  border-color: rgba(34, 197, 94, 0.4) !important;
-}
-
-.dark .sonner-error {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08)) !important;
-  border-color: rgba(239, 68, 68, 0.4) !important;
-}
-
-.dark .sonner-info {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08)) !important;
-  border-color: rgba(59, 130, 246, 0.4) !important;
-}
-
-.dark .sonner-warning {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08)) !important;
-  border-color: rgba(245, 158, 11, 0.4) !important;
+.sonner-info [data-icon] {
+  color: var(--sky-haze) !important;
 }

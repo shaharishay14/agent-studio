@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import useDarkModeStore from "../../../../store/darkmode.store";
+import useDarkModeStore, { DARK_ONLY } from "../../../../store/darkmode.store";
 
 
 
@@ -8,6 +8,10 @@ function useDarkMode() {
 
 
     useEffect(() => {
+        if (DARK_ONLY) {
+          document.documentElement.classList.add("dark");
+          return;
+        }
         // Initialize theme from localStorage
         const savedTheme = localStorage.theme;
         if (savedTheme) {
@@ -19,6 +23,7 @@ function useDarkMode() {
 
 
       useEffect(() => {
+        if (DARK_ONLY) return;
         localStorage.theme = isDarkMode ? "dark" : "light";
         // On page load or when changing themes, best to add inline in `head` to avoid FOUC
         document.documentElement.classList.toggle(
