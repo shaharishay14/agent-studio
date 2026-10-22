@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 // Pill text field: label above, glass pill input, optional leading icon and trailing action.
 export interface PillInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
+  /** Shown at the right of the label row, e.g. a "Forgot password?" link */
+  labelAction?: React.ReactNode
   icon?: React.ReactNode
   trailing?: React.ReactNode
   helper?: string
@@ -13,7 +15,7 @@ export interface PillInputProps extends React.InputHTMLAttributes<HTMLInputEleme
 }
 
 export const PillInput = React.forwardRef<HTMLInputElement, PillInputProps>(function PillInput(
-  { label, icon, trailing, helper, error, id, className, containerClassName, disabled, ...props },
+  { label, labelAction, icon, trailing, helper, error, id, className, containerClassName, disabled, ...props },
   ref
 ) {
   const autoId = React.useId()
@@ -22,10 +24,15 @@ export const PillInput = React.forwardRef<HTMLInputElement, PillInputProps>(func
 
   return (
     <div className={cn("flex flex-col gap-2", containerClassName)}>
-      {label && (
-        <label htmlFor={inputId} className="text-[13px] font-medium text-white/85">
-          {label}
-        </label>
+      {(label || labelAction) && (
+        <div className="flex items-center justify-between gap-3">
+          {label && (
+            <label htmlFor={inputId} className="text-[13px] font-medium text-white/85">
+              {label}
+            </label>
+          )}
+          {labelAction}
+        </div>
       )}
       <div
         className={cn(

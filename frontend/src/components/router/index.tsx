@@ -23,6 +23,7 @@ import {
     VerifyEmail,
     VerifyEmailPrompt,
     GithubCallback,
+    GoogleCallback,
     // Legal pages
     TermsOfService,
     PrivacyPolicy
@@ -64,7 +65,7 @@ function Router() {
                             <Route path="verify-email" element={<VerifyEmail />} errorElement={<ErrorPage />} />
                             <Route path="verify-email-prompt" element={<VerifyEmailPrompt />} errorElement={<ErrorPage />} />
                             <Route path="callback/github" element={<GithubCallback />} errorElement={<ErrorPage />} />
-                            <Route path="callback/google" element={<div>Google Callback</div>} errorElement={<ErrorPage />} />
+                            <Route path="callback/google" element={<GoogleCallback />} errorElement={<ErrorPage />} />
                         </Route>
                     </Route>
 

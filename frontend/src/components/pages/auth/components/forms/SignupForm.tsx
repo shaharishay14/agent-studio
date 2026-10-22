@@ -1,7 +1,6 @@
 import type { UseFormRegister, FieldErrors } from 'react-hook-form'
 import { Mail, User } from 'lucide-react'
-import { AuthInput } from '../AuthInput'
-import { PasswordInput } from '../PasswordInput'
+import { AuthInput, PasswordInput } from '../AuthFields'
 import type { SignupFormData } from '../../types'
 
 interface SignupFormProps {
@@ -11,23 +10,24 @@ interface SignupFormProps {
 
 export const SignupForm = ({ register, errors }: SignupFormProps) => {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-[18px]">
       <AuthInput
         id="username"
         label="Username"
-        type="text"
         placeholder="Choose a username"
-        icon={User}
+        icon={<User />}
+        autoComplete="username"
         register={register('username')}
         error={errors.username?.message}
       />
 
       <AuthInput
         id="email"
-        label="Email address"
+        label="Email"
         type="email"
-        placeholder="Enter your email"
-        icon={Mail}
+        placeholder="name@company.com"
+        icon={<Mail />}
+        autoComplete="email"
         register={register('email')}
         error={errors.email?.message}
       />
@@ -36,19 +36,20 @@ export const SignupForm = ({ register, errors }: SignupFormProps) => {
         id="password"
         label="Password"
         placeholder="Create a password"
+        autoComplete="new-password"
         register={register('password')}
         error={errors.password?.message}
-        helperText="Must be at least 8 characters long"
+        helperText="At least 8 characters"
       />
 
       <PasswordInput
         id="password_confirm"
         label="Confirm password"
-        placeholder="Confirm your password"
+        placeholder="Type it again"
+        autoComplete="new-password"
         register={register('password_confirm')}
         error={errors.password_confirm?.message}
       />
     </div>
   )
 }
-

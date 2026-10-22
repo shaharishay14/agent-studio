@@ -19,12 +19,12 @@ function Root() {
     // useRefreshToken(); // רענון אוטומטי של token
     useRoutePreloader(); // טעינה מוקדמת של נתיבים
     const { pathname } = useLocation();
-    // The Sky landing draws its own nav over the hero photo
-    const isLanding = pathname === "/" || pathname === "/builder";
+    // The Sky landing draws its own nav over the hero photo; the auth shell has its own logo
+    const hasOwnNav = pathname === "/" || pathname === "/builder" || pathname.startsWith("/auth");
 
     return (
         <Layout>
-            {!isLanding && <Nav />}
+            {!hasOwnNav && <Nav />}
             <Suspense fallback={<PageLoader />}>
                 <Outlet />
             </Suspense>

@@ -19,6 +19,7 @@ export const ResetPassword = lazy(() => import('../pages/auth/reset-password/Res
 export const VerifyEmail = lazy(() => import('../pages/auth/verify-email/VerifyEmail'));
 export const VerifyEmailPrompt = lazy(() => import('../pages/auth/verify-email-prompt/VerifyEmailPrompt'));
 export const GithubCallback = lazy(() => import('../pages/auth/github-callback/GithubCallback'));
+export const GoogleCallback = lazy(() => import('../pages/auth/google-callback/GoogleCallback'));
 
 // Legal pages
 export const TermsOfService = lazy(() => import('../pages/terms-of-service/TermsOfService'));

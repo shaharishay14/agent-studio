@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import useDarkModeStore from '../../../../../store/darkmode.store'
+
+import { authLinkClass } from './authLinkClass'
 
 interface AuthFooterLinkProps {
   text: string
@@ -8,22 +9,12 @@ interface AuthFooterLinkProps {
 }
 
 export const AuthFooterLink = ({ text, linkText, linkTo }: AuthFooterLinkProps) => {
-  const { isDarkMode } = useDarkModeStore()
-
   return (
-    <p className={`text-center text-sm ${
-      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-    }`}>
+    <p className="m-0 text-center text-sm text-white/72">
       {text}{' '}
-      <Link 
-        to={linkTo} 
-        className={`font-medium transition-colors ${
-          isDarkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
-        }`}
-      >
+      <Link to={linkTo} className={`${authLinkClass} text-sm`}>
         {linkText}
       </Link>
     </p>
   )
 }
-

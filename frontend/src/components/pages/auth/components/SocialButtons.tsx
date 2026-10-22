@@ -1,47 +1,24 @@
-import { Github } from 'lucide-react'
-import { GoogleIcon } from './GoogleIcon'
-import useDarkModeStore from '../../../../../store/darkmode.store'
+import { Button } from '@/components/ui/button'
+import { BrandIcon } from '@/components/ui/brand-icon'
 
 interface SocialButtonsProps {
   onGoogleClick: () => void
   onGithubClick: () => void
+  disabled?: boolean
 }
 
-export const SocialButtons = ({ onGoogleClick, onGithubClick }: SocialButtonsProps) => {
-  const { isDarkMode } = useDarkModeStore()
-
+// Google and GitHub as glass pills, side by side
+export const SocialButtons = ({ onGoogleClick, onGithubClick, disabled = false }: SocialButtonsProps) => {
   return (
-    <div className="flex items-center justify-center gap-4 mb-6">
-      {/* כפתור Google */}
-      <button
-        type="button"
-        onClick={onGoogleClick}
-        className={`w-14 h-14 active:scale-95 rounded-full flex items-center justify-center transition-all duration-150 border shadow-lg hover:shadow-xl group ${
-          isDarkMode 
-            ? 'bg-[#252525] hover:bg-[#2a2a2a] border-gray-800' 
-            : 'bg-white hover:bg-gray-50 border-gray-300'
-        }`}
-        title="Continue with Google"
-      >
-        <GoogleIcon />
-      </button>
-
-      {/* כפתור GitHub */}
-      <button
-        type="button"
-        onClick={onGithubClick}
-        className={`w-14 h-14 active:scale-95 rounded-full flex items-center justify-center transition-all duration-150 border shadow-lg hover:shadow-xl group ${
-          isDarkMode 
-            ? 'bg-[#252525] hover:bg-[#2a2a2a] border-gray-800' 
-            : 'bg-white hover:bg-gray-50 border-gray-300'
-        }`}
-        title="Continue with GitHub"
-      >
-        <Github className={`w-6 h-6 transition-transform group-hover:scale-110 ${
-          isDarkMode ? 'text-white drop-shadow-md' : 'text-gray-900'
-        }`} />
-      </button>
+    <div className="flex gap-2.5">
+      <Button variant="glass" className="flex-1" onClick={onGoogleClick} disabled={disabled}>
+        <BrandIcon name="Google" size={16} />
+        Google
+      </Button>
+      <Button variant="glass" className="flex-1" onClick={onGithubClick} disabled={disabled}>
+        <BrandIcon name="GitHub" size={16} />
+        GitHub
+      </Button>
     </div>
   )
 }
-

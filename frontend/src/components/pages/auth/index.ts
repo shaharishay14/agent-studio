@@ -6,3 +6,4 @@ export { default as VerifyEmail } from './verify-email/VerifyEmail'
 export { default as VerifyEmailPrompt } from './verify-email-prompt/VerifyEmailPrompt'
 export { default as GithubCallback } from './github-callback/GithubCallback'
 
+export { default as GoogleCallback } from './google-callback/GoogleCallback'

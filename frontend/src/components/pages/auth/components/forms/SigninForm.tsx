@@ -1,7 +1,6 @@
 import type { UseFormRegister, FieldErrors } from 'react-hook-form'
-import { User } from 'lucide-react'
-import { AuthInput } from '../AuthInput'
-import { PasswordInput } from '../PasswordInput'
+import { AtSign } from 'lucide-react'
+import { AuthInput, PasswordInput } from '../AuthFields'
 import type { SigninFormData } from '../../types'
 
 interface SigninFormProps {
@@ -11,13 +10,13 @@ interface SigninFormProps {
 
 export const SigninForm = ({ register, errors }: SigninFormProps) => {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-[18px]">
       <AuthInput
         id="username"
-        label="Username or Email"
-        type="text"
-        placeholder="Enter your username or email"
-        icon={User}
+        label="Username or email"
+        placeholder="name@company.com"
+        icon={<AtSign />}
+        autoComplete="username"
         register={register('username')}
         error={errors.username?.message}
       />
@@ -25,7 +24,7 @@ export const SigninForm = ({ register, errors }: SigninFormProps) => {
       <PasswordInput
         id="password"
         label="Password"
-        placeholder="Enter your password"
+        placeholder="Your password"
         register={register('password')}
         error={errors.password?.message}
         showForgotPassword={true}
@@ -33,4 +32,3 @@ export const SigninForm = ({ register, errors }: SigninFormProps) => {
     </div>
   )
 }
-
