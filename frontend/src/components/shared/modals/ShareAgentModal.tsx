@@ -1,33 +1,38 @@
 import { useState } from 'react';
-import useDarkModeStore from '../../../../store/darkmode.store';
-import useModalsStore from '../../../../store/modals.store';
+import { Code, Link, QrCode, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  ModalHeader,
-  ModalFooter,
-  ShareModalTabs,
-  ShareLinkTab,
-  ShareQRTab,
-  ShareEmbedTab,
-} from './ShareAgentModal/index';
+
+import { HaloToggleGroup } from '@/components/ui/halo-toggle-group';
+import { IconCircle } from '@/components/ui/icon-circle';
+import { Modal } from '@/components/ui/modal';
+import useModalsStore from '../../../../store/modals.store';
+import { ShareLinkTab, ShareQRTab, ShareEmbedTab } from './ShareAgentModal/index';
 import type { TabType } from './ShareAgentModal/index';
 
+const TABS = [
+  { value: 'link', label: <><Link className="size-4" strokeWidth={1.7} aria-hidden="true" /> Link</> },
+  { value: 'qr', label: <><QrCode className="size-4" strokeWidth={1.7} aria-hidden="true" /> QR code</> },
+  { value: 'embed', label: <><Code className="size-4" strokeWidth={1.7} aria-hidden="true" /> Embed</> },
+];
+
 function ShareAgentModal() {
-  const { isDarkMode } = useDarkModeStore();
   const { shareAgentModal, closeShareAgentModal } = useModalsStore();
   const [activeTab, setActiveTab] = useState<TabType>('link');
-
-  if (!shareAgentModal.isOpen) return null;
 
   // Dynamic agent link based on agent ID
   const frontUrl = import.meta.env.VITE_FRONT_URL || window.location.origin;
   const agentLink = `${frontUrl}/public/chat/${shareAgentModal.agentId}`;
-  
+  const agentName = shareAgentModal.agentName || 'your agent';
+
   const embedCode = `<iframe src="${agentLink}" width="100%" height="600" frameborder="0" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);" title="Chat with ${shareAgentModal.agentName || 'Agent'}"></iframe>`;
 
-  const handleCopy = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${type} copied to clipboard!`);
+  const handleCopy = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${type} copied`);
+    } catch {
+      toast.error(`Couldn't copy the ${type.toLowerCase()}. Select it and copy it yourself.`);
+    }
   };
 
   const handleClose = () => {
@@ -36,66 +41,30 @@ function ShareAgentModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      {/* Modal */}
-      <div 
-        className={`relative w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl border-2 max-h-[95vh] overflow-y-auto ${
-          isDarkMode 
-            ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border-gray-700/50' 
-            : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="p-4 sm:p-6 md:p-8">
-          <ModalHeader 
-            isDarkMode={isDarkMode}
-            agentName={shareAgentModal.agentName || 'Agent'}
-            onClose={handleClose}
-          />
-
-          <ShareModalTabs 
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            isDarkMode={isDarkMode}
-          />
-
-          {/* Content */}
-          <div className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 ${
-            isDarkMode ? 'bg-white/[0.03]' : 'bg-gray-50'
-          }`}>
-            {activeTab === 'link' && (
-              <ShareLinkTab 
-                isDarkMode={isDarkMode}
-                agentLink={agentLink}
-                onCopy={handleCopy}
-              />
-            )}
-
-            {activeTab === 'qr' && (
-              <ShareQRTab 
-                isDarkMode={isDarkMode}
-                agentLink={agentLink}
-              />
-            )}
-
-            {activeTab === 'embed' && (
-              <ShareEmbedTab 
-                isDarkMode={isDarkMode}
-                embedCode={embedCode}
-                onCopy={handleCopy}
-              />
-            )}
-          </div>
-
-          <ModalFooter isDarkMode={isDarkMode} />
-        </div>
+    <Modal
+      open={shareAgentModal.isOpen}
+      onOpenChange={(open) => !open && handleClose()}
+      title={`Share ${agentName}`}
+      description="A public chat page. Your agent's settings and files stay private."
+      icon={
+        <IconCircle>
+          <Share2 />
+        </IconCircle>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        <HaloToggleGroup
+          items={TABS}
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as TabType)}
+          aria-label="Share as"
+          className="self-start"
+        />
+        {activeTab === 'link' && <ShareLinkTab agentLink={agentLink} onCopy={handleCopy} />}
+        {activeTab === 'qr' && <ShareQRTab agentLink={agentLink} />}
+        {activeTab === 'embed' && <ShareEmbedTab embedCode={embedCode} onCopy={handleCopy} />}
       </div>
-    </div>
+    </Modal>
   );
 }
 

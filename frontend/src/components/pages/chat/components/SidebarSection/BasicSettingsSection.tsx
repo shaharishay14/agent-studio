@@ -1,8 +1,9 @@
-import { useId, useRef } from 'react';
+import { useRef } from 'react';
 import { Bot, ImagePlus, X } from 'lucide-react';
 
 import { Button, IconButton } from '@/components/ui/button';
 import { PillInput } from '@/components/ui/pill-input';
+import { TextArea } from '@/components/ui/text-area';
 import { formatAvatarUrl } from '../../utils';
 
 interface BasicSettingsSectionProps {
@@ -33,7 +34,6 @@ export const BasicSettingsSection = ({
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const formattedAvatar = formatAvatarUrl(agentAvatar || null);
   const imageUrl = previewUrl || formattedAvatar;
-  const promptId = useId();
 
   return (
     <div className="flex flex-col gap-5">
@@ -79,19 +79,13 @@ export const BasicSettingsSection = ({
 
       <PillInput label="Name" value={agentName} onChange={(e) => setAgentName(e.target.value)} placeholder="Agent name" />
 
-      <div className="flex flex-col gap-2">
-        <label htmlFor={promptId} className="text-[13px] font-medium text-white/85">
-          Instructions
-        </label>
-        <textarea
-          id={promptId}
-          value={agentPrompt}
-          onChange={(e) => setAgentPrompt(e.target.value)}
-          placeholder="What should this agent do?"
-          rows={7}
-          className="w-full resize-y rounded-[20px] border border-white/25 bg-white/6 px-4 py-3 text-sm leading-[21px] text-white outline-none placeholder:text-white/55 focus:border-white/70 focus:shadow-[0_0_0_4px_rgba(255,255,255,0.08)]"
-        />
-      </div>
+      <TextArea
+        label="Instructions"
+        value={agentPrompt}
+        onChange={(e) => setAgentPrompt(e.target.value)}
+        placeholder="What should this agent do?"
+        rows={7}
+      />
 
       <Button block onClick={onSaveSettings} loading={isSaving}>
         {isSaving ? 'Saving…' : 'Save changes'}

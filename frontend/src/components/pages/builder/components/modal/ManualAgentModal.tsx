@@ -1,15 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import useDarkModeStore from '../../../../../../store/darkmode.store';
-import { Settings as SettingsIcon, Wrench, Upload, Zap } from 'lucide-react';
-import {
-  ModalHeader,
-  StepIndicator,
-  BasicInfoStep,
-  ToolSelectionStep,
-  FileUploadStep,
-  TriggersStep,
-  ModalFooter
-} from './components';
+import { ArrowLeft, ArrowRight, SlidersHorizontal } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { IconCircle } from '@/components/ui/icon-circle';
+import { Modal } from '@/components/ui/modal';
+import { WizardSteps } from '@/components/ui/wizard-steps';
+import { BasicInfoStep, ToolSelectionStep, FileUploadStep, TriggersStep } from './components';
 import { useGetConnectionsForDisplay } from '../../../integrations/hooks/useGetConnectionsForDisplay';
 import { useCreateAgent } from '../../hooks/useCreateAgent';
 
@@ -26,10 +22,12 @@ export interface ManualAgentData {
   avatar?: File | null;
   tools?: string[];
   files?: File[];
-  triggers?: any[];
+  triggers?: unknown[];
 }
 
 type Step = 1 | 2 | 3 | 4;
+
+const STEPS = ['Basics', 'Apps', 'Files', 'Triggers'];
 
 function ManualAgentModal({ 
   isOpen, 
@@ -37,7 +35,6 @@ function ManualAgentModal({
   onSubmit, 
   initialPrompt = ''
 }: ManualAgentModalProps) {
-  const { isDarkMode } = useDarkModeStore();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const { createAgent, isCreating } = useCreateAgent();
   
@@ -48,7 +45,7 @@ function ManualAgentModal({
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [triggers] = useState<any[]>([]);
+  const [triggers] = useState<unknown[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +58,7 @@ function ManualAgentModal({
     if (!searchTerm.trim()) return connectionsForDisplay;
     
     const search = searchTerm.toLowerCase();
-    return connectionsForDisplay.filter((tool: any) => 
+    return connectionsForDisplay.filter((tool: { name?: string; description?: string; category?: string }) => 
       tool.name?.toLowerCase().includes(search) ||
       tool.description?.toLowerCase().includes(search) ||
       tool.category?.toLowerCase().includes(search)
@@ -75,15 +72,6 @@ function ManualAgentModal({
     }
   }, [isOpen, initialPrompt]);
 
-  if (!isOpen) return null;
-
-  const steps = [
-    { number: 1, title: 'Basic Info', subtitle: 'Name, avatar, and prompt', icon: SettingsIcon },
-    { number: 2, title: 'Tool Selection', subtitle: "Choose your agent's capabilities", icon: Wrench },
-    { number: 3, title: 'File Upload', subtitle: 'Add knowledge base files (optional)', icon: Upload },
-    { number: 4, title: 'Triggers', subtitle: 'Set up automated triggers (optional)', icon: Zap },
-  ];
-
   const toggleTool = (toolName: string) => {
     setSelectedTools(prev => {
       const isSelected = prev.includes(toolName);
@@ -92,58 +80,6 @@ function ManualAgentModal({
         : [...prev, toolName];
       return newSelection;
     });
-  };
-
-  // Map icon from integrations format
-  const getToolIcon = (toolName: string, category: string) => {
-    const iconMap: Record<string, string> = {
-      'Gmail': '✉️',
-      'Google Drive': '💾',
-      'Google Docs': '📄',
-      'Google Sheets': '📊',
-      'Google Calendar': '📅',
-      'Slack': '#️⃣',
-      'Twitter': '🐦',
-      'X': '🐦',
-      'LinkedIn': '💼',
-      'Notion': '📝',
-      'GitHub': '🐙',
-      'Linear': '📋',
-      'Reddit': '🔴',
-      'Discord': '💬',
-      'Telegram': '✈️',
-      'WhatsApp': '📱',
-      'Zoom': '📹',
-      'Trello': '📌',
-      'Asana': '✓',
-      'Jira': '🎯',
-      'Dropbox': '📦',
-      'OneDrive': '☁️',
-      'Figma': '🎨',
-      'Stripe': '💳',
-      'PayPal': '💰',
-      'Shopify': '🛒',
-      'Mailchimp': '📧',
-      'HubSpot': '🚀',
-      'Salesforce': '☁️',
-    };
-    
-    const categoryIconMap: Record<string, string> = {
-      'communication': '💬',
-      'productivity': '⚡',
-      'messaging': '💬',
-      'social': '🌐',
-      'email': '✉️',
-      'storage': '💾',
-      'developer': '⚙️',
-      'finance': '💰',
-      'marketing': '📣',
-      'design': '🎨',
-      'video': '📹',
-      'analytics': '📊',
-    };
-    
-    return iconMap[toolName] || categoryIconMap[category.toLowerCase()] || '🔧';
   };
 
   const handleNext = () => {
@@ -172,7 +108,7 @@ function ManualAgentModal({
       files,
     };
 
-    // אם יש callback מותאם אישית, נשתמש בו
+    // Use the caller's handler if there is one
     if (onSubmit) {
       onSubmit({
         name,
@@ -183,7 +119,7 @@ function ManualAgentModal({
         triggers,
       });
     } else {
-      // אחרת נשתמש ב-hook המובנה
+      // Otherwise create the agent here
       createAgent(agentData, {
         onSuccess: () => {
           onClose();
@@ -257,101 +193,84 @@ function ManualAgentModal({
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const handleAddTrigger = () => {
-    // TODO: Open trigger modal
-    console.log('Add trigger clicked');
-  };
-
   const isStep1Valid = Boolean(name.trim() && prompt.trim());
   const canProceed = currentStep === 1 ? isStep1Valid : true;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto pt-4 sm:pt-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div 
-        className={`relative w-full max-w-3xl rounded-xl sm:rounded-2xl shadow-2xl border sm:border-2 mt-0 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[90vh] flex flex-col ${
-          isDarkMode
-            ? 'bg-gray-900 border-purple-500/30'
-            : 'bg-white border-purple-200'
-        }`}
-        style={{
-          boxShadow: isDarkMode 
-            ? '0 0 60px rgba(168, 85, 247, 0.4)' 
-            : '0 20px 60px rgba(0, 0, 0, 0.3)'
-        }}
-      >
-        {/* Header */}
-        <div className={`px-4 sm:px-8 py-4 sm:py-6 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-800' : 'border-gray-200'
-        }`}>
-          <ModalHeader onClose={onClose} />
-          <StepIndicator steps={steps} currentStep={currentStep} />
-        </div>
-
-        {/* Content */}
-        <div className={`px-4 sm:px-8 py-4 sm:py-8 overflow-y-auto flex-1 min-h-0 ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          {currentStep === 1 && (
-            <BasicInfoStep
-              name={name}
-              setName={setName}
-              prompt={prompt}
-              setPrompt={setPrompt}
-              avatarPreview={avatarPreview}
-              onAvatarChange={handleAvatarChange}
-            />
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      title="Set up your agent"
+      description="Step by step, with full control."
+      icon={
+        <IconCircle>
+          <SlidersHorizontal />
+        </IconCircle>
+      }
+      size="lg"
+      dismissible={!isCreating}
+      footer={
+        <>
+          {currentStep > 1 && (
+            <Button variant="ghost" size="sm" onClick={handleBack} disabled={isCreating} className="mr-auto">
+              <ArrowLeft />
+              Back
+            </Button>
           )}
-
-          {currentStep === 2 && (
-            <ToolSelectionStep
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filteredTools={filteredTools}
-              selectedTools={selectedTools}
-              toggleTool={toggleTool}
-              isLoadingTools={isLoadingTools}
-              getToolIcon={getToolIcon}
-            />
+          {currentStep < 4 ? (
+            <Button size="sm" onClick={handleNext} disabled={!canProceed}>
+              {currentStep > 1 ? 'Next' : 'Continue'}
+              <ArrowRight />
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleSubmit} disabled={!isStep1Valid} loading={isCreating}>
+              {isCreating ? 'Creating…' : 'Create agent'}
+            </Button>
           )}
+        </>
+      }
+    >
+      <WizardSteps steps={STEPS} current={currentStep - 1} className="mb-6" />
+      <div key={currentStep} className="animate-sky-in">
+        {currentStep === 1 && (
+          <BasicInfoStep
+            name={name}
+            setName={setName}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            avatarPreview={avatarPreview}
+            onAvatarChange={handleAvatarChange}
+          />
+        )}
 
-          {currentStep === 3 && (
-            <FileUploadStep
-              files={files}
-              isDragging={isDragging}
-              fileInputRef={fileInputRef}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onFileSelect={handleFileSelect}
-              onRemoveFile={handleRemoveFile}
-              formatFileSize={formatFileSize}
-            />
-          )}
+        {currentStep === 2 && (
+          <ToolSelectionStep
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filteredTools={filteredTools}
+            selectedTools={selectedTools}
+            toggleTool={toggleTool}
+            isLoadingTools={isLoadingTools}
+          />
+        )}
 
-          {currentStep === 4 && (
-            <TriggersStep onAddTrigger={handleAddTrigger} />
-          )}
-        </div>
+        {currentStep === 3 && (
+          <FileUploadStep
+            files={files}
+            isDragging={isDragging}
+            fileInputRef={fileInputRef}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onFileSelect={handleFileSelect}
+            onRemoveFile={handleRemoveFile}
+            formatFileSize={formatFileSize}
+          />
+        )}
 
-        {/* Footer */}
-        <ModalFooter
-          currentStep={currentStep}
-          canProceed={canProceed}
-          isCreating={isCreating}
-          isStep1Valid={isStep1Valid}
-          onBack={handleBack}
-          onNext={handleNext}
-          onSubmit={handleSubmit}
-        />
+        {currentStep === 4 && <TriggersStep />}
       </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -143,7 +143,7 @@ export function HaloToggleGroup({
         {items.map((item) => (
           <Toggle
             className={cn(
-              "relative flex h-10 min-w-0 flex-1 items-center justify-center rounded-full px-5",
+              "relative flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-5 [&_svg]:shrink-0",
               "text-sm font-medium whitespace-nowrap text-white/70",
               "transition-colors duration-200 ease-sky hover:text-white",
               "focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white",

@@ -1,50 +1,31 @@
-import { Link, Copy, ExternalLink } from 'lucide-react';
+import { Copy, ExternalLink } from 'lucide-react';
+
+import { Button, IconButton } from '@/components/ui/button';
 import type { ShareLinkTabProps } from './types';
 
-export function ShareLinkTab({ isDarkMode, agentLink, onCopy }: ShareLinkTabProps) {
+export function ShareLinkTab({ agentLink, onCopy }: ShareLinkTabProps) {
   return (
-    <div>
-      <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-        <div className="p-2 sm:p-2.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0">
-          <Link className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-        </div>
-        <div className="min-w-0">
-          <h3 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            🚀 Instant Share Link
-          </h3>
-          <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Copy & paste anywhere to spread the word
-          </p>
-        </div>
-      </div>
-
-      <div className={`flex items-start gap-2 p-2.5 sm:p-3.5 rounded-lg sm:rounded-xl mb-3 sm:mb-4 ${
-        isDarkMode ? 'bg-gray-950/80' : 'bg-gray-900'
-      }`}>
-        <code className={`flex-1 text-xs sm:text-sm font-mono break-all ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-200'
-        }`}>
-          {agentLink}
-        </code>
-        <button
-          onClick={() => window.open(agentLink, '_blank')}
-          className={`p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 ${
-            isDarkMode ? 'hover:bg-white/10' : 'hover:bg-white/20'
-          }`}
-          title="Open in new tab"
+    <div className="flex flex-col gap-3">
+      <p className="m-0 text-sm text-white/72">Anyone with the link can chat with this agent. They can't see its settings or files.</p>
+      <div className="flex items-center gap-2 rounded-2xl border border-white/15 bg-night/60 py-1.5 pr-1.5 pl-4">
+        <code className="min-w-0 flex-1 truncate font-mono text-[13px] text-white/85">{agentLink}</code>
+        <a
+          href={agentLink}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open the public chat in a new tab"
+          className="inline-grid size-9 shrink-0 place-items-center rounded-pill text-white/80 hover:bg-white/12 hover:text-white focus-visible:outline-2 focus-visible:outline-white [&_svg]:size-4"
         >
-          <ExternalLink className="w-4 h-4 text-gray-300" />
-        </button>
+          <ExternalLink strokeWidth={1.7} />
+        </a>
+        <IconButton aria-label="Copy link" onClick={() => onCopy(agentLink, 'Link')} className="size-9">
+          <Copy />
+        </IconButton>
       </div>
-
-      <button
-        onClick={() => onCopy(agentLink, 'Link')}
-        className="w-full py-3 sm:py-3.5 px-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 rounded-lg sm:rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2 sm:gap-2.5 shadow-lg text-sm sm:text-base"
-      >
-        <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
-        📋 Copy & Share Now
-      </button>
+      <Button block onClick={() => onCopy(agentLink, 'Link')}>
+        <Copy />
+        Copy link
+      </Button>
     </div>
   );
 }
-

@@ -1,9 +1,11 @@
 import { useRef, useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import type { ShareQRTabProps } from './types';
 
-export function ShareQRTab({ isDarkMode, agentLink }: ShareQRTabProps) {
+export function ShareQRTab({ agentLink }: ShareQRTabProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   const [qrSize, setQrSize] = useState(180);
 
@@ -46,44 +48,15 @@ export function ShareQRTab({ isDarkMode, agentLink }: ShareQRTabProps) {
   };
 
   return (
-    <div className="text-center">
-      <div className="flex items-center gap-2 mb-3 sm:mb-4 justify-center">
-        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0">
-          <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-        </div>
-        <div className="text-left">
-          <h3 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            📱 QR Magic Code
-          </h3>
-          <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Scan to instantly access your agent
-          </p>
-        </div>
+    <div className="flex flex-col items-center gap-4">
+      <p className="m-0 self-stretch text-sm text-white/72">Scan with a phone camera to open the chat. Download it to print or add to slides.</p>
+      <div ref={qrRef} className="rounded-3xl bg-white p-3">
+        <QRCodeSVG value={agentLink} size={qrSize} level="H" includeMargin={true} fgColor="#000000" bgColor="#ffffff" title="QR code for the public chat link" />
       </div>
-
-      {/* Real QR Code */}
-      <div 
-        ref={qrRef}
-        className="inline-block p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 bg-white shadow-lg"
-      >
-        <QRCodeSVG
-          value={agentLink}
-          size={qrSize}
-          level="H"
-          includeMargin={true}
-          fgColor="#000000"
-          bgColor="#ffffff"
-        />
-      </div>
-
-      <button
-        onClick={handleDownload}
-        className="w-full py-3 sm:py-3.5 px-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-lg sm:rounded-xl text-white font-medium transition-all flex items-center justify-center gap-2 shadow-lg text-sm sm:text-base"
-      >
-        <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-        📥 Download & Print QR
-      </button>
+      <Button variant="glass" block onClick={handleDownload}>
+        <Download />
+        Download PNG
+      </Button>
     </div>
   );
 }
-

@@ -32,7 +32,6 @@ export const useCreateTrigger = ({ agentId, mockAppEvents }: UseCreateTriggerPro
   const [email, setEmail] = useState('');
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [selectedAppEvent, setSelectedAppEvent] = useState<AppEventType>(null);
-  const [showEventDropdown, setShowEventDropdown] = useState(false);
   const [eventConfig, setEventConfig] = useState<EventConfig>({
     interval: '1',
     labelIds: 'INBOX',
@@ -95,13 +94,8 @@ export const useCreateTrigger = ({ agentId, mockAppEvents }: UseCreateTriggerPro
         <AppEventConfig
           mockEvents={mockAppEvents}
           selectedEvent={selectedAppEvent}
-          showDropdown={showEventDropdown}
           eventConfig={eventConfig}
-          onEventSelect={(eventId) => {
-            setSelectedAppEvent(eventId as AppEventType);
-            setShowEventDropdown(false);
-          }}
-          onToggleDropdown={() => setShowEventDropdown(!showEventDropdown)}
+          onEventSelect={(eventId) => setSelectedAppEvent(eventId as AppEventType)}
           onConfigChange={setEventConfig}
         />
       );

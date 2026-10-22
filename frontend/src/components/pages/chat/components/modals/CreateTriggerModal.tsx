@@ -1,93 +1,75 @@
-import useDarkModeStore from '../../../../../../store/darkmode.store';
-import {
-  StepIndicator,
-  ModalHeader,
-  ModalFooter,
-  useCreateTrigger
-} from './CreateTrigger';
-import type {
-  CreateTriggerModalProps,
-  AppEvent,
-  Step
-} from '../../types';
+import { ArrowLeft, ArrowRight, CalendarClock, Plus } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { IconCircle } from '@/components/ui/icon-circle';
+import { Modal } from '@/components/ui/modal';
+import { WizardSteps } from '@/components/ui/wizard-steps';
+import { useCreateTrigger } from './CreateTrigger';
+import type { CreateTriggerModalProps, AppEvent } from '../../types';
 
 const mockAppEvents: AppEvent[] = [
-  { id: 'new_email', name: 'New Email', description: 'Triggered when a new email arrives', icon: '📧', connected: false },
-  { id: 'new_commit', name: 'New Commit', description: 'Triggered when a new commit is pushed', icon: '💾', connected: false },
-  { id: 'new_message', name: 'New Message', description: 'Triggered when a new message is posted', icon: '💬', connected: false },
-  { id: 'new_event', name: 'New Event', description: 'Triggered when a new event occurs', icon: '📅', connected: false },
+  { id: 'new_email', name: 'New email', description: 'A new email arrives', icon: 'mail', connected: false },
+  { id: 'new_commit', name: 'New commit', description: 'A commit is pushed', icon: 'commit', connected: false },
+  { id: 'new_message', name: 'New message', description: 'A message is posted', icon: 'message', connected: false },
+  { id: 'new_event', name: 'New calendar event', description: 'An event is created', icon: 'calendar', connected: false },
 ];
 
-const steps: Step[] = [
-  { num: 1, title: 'Trigger Type', subtitle: 'Choose how this trigger starts' },
-  { num: 2, title: 'Schedule or Config', subtitle: 'Define timing or event settings' },
-  { num: 3, title: 'Message & Test', subtitle: 'Craft the instruction and test it' },
-  { num: 4, title: 'Output', subtitle: 'Decide where results are sent' },
-];
+const STEPS = ['Trigger', 'Timing', 'Message', 'Results'];
 
 function CreateTriggerModal({ isOpen, onClose, agentId }: CreateTriggerModalProps) {
-  const { isDarkMode } = useDarkModeStore();
-  
-  const {
-    step,
-    handleNext,
-    handleBack,
-    handleCreateTrigger,
-    canProceed,
-    renderStepContent
-  } = useCreateTrigger({ agentId, mockAppEvents });
-
-  if (!isOpen) return null;
+  const { step, handleNext, handleBack, handleCreateTrigger, canProceed, renderStepContent } = useCreateTrigger({ agentId, mockAppEvents });
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div 
-        className={`relative w-full max-w-4xl rounded-3xl shadow-2xl custom-scrollbar border-2 ${
-          isDarkMode 
-            ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border-gray-700/50' 
-            : 'bg-white border-gray-200'
-        }`}
-        style={{
-          maxHeight: '90vh',
-          overflowY: 'auto'
-        }}
-      >
-        <div className="p-10">
-          {/* Header */}
-          <ModalHeader onClose={onClose} />
-
-          {/* Step Indicator */}
-          <StepIndicator currentStep={step} steps={steps} />
-
-          {/* Content */}
-          <div className="min-h-[350px] mb-10 bg-gray-800/20 rounded-2xl p-8 border border-gray-800/50">
-            {renderStepContent()}
-          </div>
-
-          {/* Footer Buttons */}
-          <ModalFooter
-            step={step}
-            canProceed={canProceed}
-            onBack={handleBack}
-            onNext={handleNext}
-            onClose={onClose}
-            onCreateTrigger={() => {
-              handleCreateTrigger();
-              onClose();
-            }}
-          />
-        </div>
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      title="New trigger"
+      description="Run this agent automatically."
+      icon={
+        <IconCircle>
+          <CalendarClock />
+        </IconCircle>
+      }
+      size="lg"
+      footer={
+        <>
+          {step > 1 && (
+            <Button variant="ghost" size="sm" onClick={handleBack} className="mr-auto">
+              <ArrowLeft />
+              Back
+            </Button>
+          )}
+          {/* On phones, Back + the close button cover it once past the first step */}
+          <Button variant="glass" size="sm" onClick={onClose} className={step > 1 ? 'hidden sm:inline-flex' : undefined}>
+            Cancel
+          </Button>
+          {step < 4 ? (
+            <Button size="sm" onClick={handleNext} disabled={!canProceed}>
+              Next
+              <ArrowRight />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={!canProceed}
+              onClick={() => {
+                handleCreateTrigger();
+                onClose();
+              }}
+            >
+              <Plus />
+              Create trigger
+            </Button>
+          )}
+        </>
+      }
+    >
+      <WizardSteps steps={STEPS} current={step - 1} className="mb-6" />
+      <div key={step} className="animate-sky-in">
+        {renderStepContent()}
       </div>
-    </div>
+    </Modal>
   );
 }
 
 export default CreateTriggerModal;
-

@@ -24,6 +24,8 @@ export const buttonVariants = cva(
           "shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] hover:bg-white/18",
         ],
         ghost: "bg-transparent text-white/85 hover:text-white",
+        // Destructive confirm: coral fill with dark text
+        danger: "bg-off text-on-white hover:bg-[#ff9d8f]",
       },
       size: {
         sm: "h-9 px-4 text-sm",
@@ -66,7 +68,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...props}
     >
-      {loading && <Spinner size={16} tone={variant === "white" || variant == null ? "dark" : "light"} />}
+      {loading && <Spinner size={16} tone={variant === "white" || variant === "danger" || variant == null ? "dark" : "light"} />}
       {children}
     </button>
   )
