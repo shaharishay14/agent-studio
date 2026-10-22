@@ -1,6 +1,5 @@
 import type { Integration } from './types';
 import IntegrationCard from './IntegrationCard';
-import useDarkModeStore from '../../../../../store/darkmode.store';
 
 interface IntegrationGridProps {
   integrations: Integration[];
@@ -13,92 +12,40 @@ interface IntegrationGridProps {
   disconnectingToolName: string | null | undefined;
 }
 
+// "Connected" and "Not connected" groups
 function IntegrationGrid({ integrations, onConnect, onDisconnect, onViewDetails, isConnecting, connectingToolName, isDisconnecting, disconnectingToolName }: IntegrationGridProps) {
-  const { isDarkMode } = useDarkModeStore();
-  
   // חלוקה לאינטגרציות מחוברות ולא מחוברות
-  const connectedIntegrations = integrations.filter(i => i.isConnected);
-  const notConnectedIntegrations = integrations.filter(i => !i.isConnected);
-  
+  const groups = [
+    { label: 'Connected', items: integrations.filter(i => i.isConnected) },
+    { label: 'Not connected', items: integrations.filter(i => !i.isConnected) },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto space-y-12">
-      {/* Connected Section */}
-      {connectedIntegrations.length > 0 && (
-        <div>
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className={`text-xs font-bold tracking-wider uppercase ${
-              isDarkMode ? 'text-green-500' : 'text-green-700'
-            }`}>
-              CONNECTED
+    <div className="flex flex-col gap-10">
+      {groups.map(({ label, items }) =>
+        items.length > 0 ? (
+          <section key={label} aria-label={label}>
+            <h2 className="m-0 mb-4 text-xs font-normal tracking-[0.08em] text-white/66 uppercase">
+              {label} · {items.length}
             </h2>
-            <span className={`text-xs px-3 py-1 rounded-full ${
-              isDarkMode
-                ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-                : 'text-green-700 bg-green-100 border border-green-300'
-            }`}>
-              {connectedIntegrations.length}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {connectedIntegrations.map((integration) => (
-              <IntegrationCard
-                key={integration.id}
-                integration={integration}
-                onConnect={onConnect}
-                onDisconnect={onDisconnect}
-                onViewDetails={onViewDetails}
-                isConnecting={isConnecting && connectingToolName === integration.name}
-                isDisconnecting={isDisconnecting && disconnectingToolName === integration.name}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Not Connected Section */}
-      {notConnectedIntegrations.length > 0 && (
-        <div>
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className={`text-xs font-bold tracking-wider uppercase ${
-              isDarkMode ? 'text-gray-500' : 'text-purple-700'
-            }`}>
-              NOT CONNECTED
-            </h2>
-            <span className={`text-xs px-3 py-1 rounded-full ${
-              isDarkMode
-                ? 'text-gray-600 bg-white/5'
-                : 'text-purple-700 bg-purple-100 border border-purple-300'
-            }`}>
-              {notConnectedIntegrations.length}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {notConnectedIntegrations.map((integration) => (
-              <IntegrationCard
-                key={integration.id}
-                integration={integration}
-                onConnect={onConnect}
-                onDisconnect={onDisconnect}
-                onViewDetails={onViewDetails}
-                isConnecting={isConnecting && connectingToolName === integration.name}
-                isDisconnecting={isDisconnecting && disconnectingToolName === integration.name}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Empty State */}
-      {integrations.length === 0 && (
-        <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          לא נמצאו אינטגרציות
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((integration) => (
+                <IntegrationCard
+                  key={integration.id}
+                  integration={integration}
+                  onConnect={onConnect}
+                  onDisconnect={onDisconnect}
+                  onViewDetails={onViewDetails}
+                  isConnecting={isConnecting && connectingToolName === integration.name}
+                  isDisconnecting={isDisconnecting && disconnectingToolName === integration.name}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null
       )}
     </div>
   );
 }
 
 export default IntegrationGrid;
-

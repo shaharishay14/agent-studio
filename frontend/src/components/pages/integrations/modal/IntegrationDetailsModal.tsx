@@ -1,10 +1,22 @@
-import useDarkModeStore from '../../../../../store/darkmode.store';
+import { Zap } from 'lucide-react';
+
 import useModalsStore from '../../../../../store/modals.store';
-import { X, Zap } from 'lucide-react';
+import { BrandIcon } from '@/components/ui/brand-icon';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
+import { Spinner } from '@/components/ui/spinner';
 import { useGetToolCapabilities } from '../hooks';
 
+// GMAIL_SEND_EMAIL -> "Send email" (the app name is already in the title)
+const actionLabel = (slug: string, app: string) => {
+  const words = slug.toLowerCase().split('_');
+  const appWords = app.toLowerCase().replace(/[^a-z0-9]+/g, '_').split('_');
+  const rest = words.slice(0, appWords.length).join('') === appWords.join('') ? words.slice(appWords.length) : words.slice(1);
+  const text = (rest.length ? rest : words).join(' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
 function IntegrationDetailsModal() {
-  const { isDarkMode } = useDarkModeStore();
   const { integrationDetailsModal, closeIntegrationDetailsModal } = useModalsStore();
 
   // שליפת ה-capabilities של הכלי
@@ -12,138 +24,62 @@ function IntegrationDetailsModal() {
     integrationDetailsModal.integrationSlug // שולח את שם הכלי כ-query parameter
   );
 
-  if (!integrationDetailsModal.isOpen) return null;
-
-  const handleClose = () => {
-    closeIntegrationDetailsModal();
-  };
+  const name = integrationDetailsModal.integrationName || 'Integration';
+  const count = capabilities?.slugs?.length ?? capabilities?.count ?? 0;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      {/* Modal */}
-      <div 
-        className={`relative w-full max-w-4xl rounded-3xl shadow-2xl border-2 max-h-[85vh] overflow-hidden ${
-          isDarkMode 
-            ? 'bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border-gray-700/50' 
-            : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="flex flex-col h-full max-h-[85vh]">
-          {/* Header - Fixed */}
-          <div className="p-8 pb-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
-                  <span className="text-3xl">📧</span>
-                </div>
-                <div>
-                  <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {integrationDetailsModal.integrationName} Capabilities
-                  </h2>
-                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-                    {capabilities?.count || 0} Available Actions
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleClose}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDarkMode
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto px-8 pb-8 modal-scrollbar">
-            {isLoading && (
-              <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
-                <p className="mt-4 text-lg">Loading capabilities...</p>
-              </div>
-            )}
-
-            {isError && (
-              <div className={`text-center py-12 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                <p className="text-lg">❌ Error loading data</p>
-              </div>
-            )}
-
-            {!isLoading && !isError && capabilities && (
-              <div className="space-y-3">
-                {capabilities.slugs && capabilities.slugs.length > 0 ? (
-                  capabilities.slugs.map((slug, index) => (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-xl border-2 transition-all hover:scale-[1.01] ${
-                        isDarkMode
-                          ? 'bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/30 hover:border-purple-500/50'
-                          : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:border-purple-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg flex-shrink-0 ${
-                          isDarkMode ? 'bg-purple-500/20' : 'bg-purple-500'
-                        }`}>
-                          <Zap className={`w-4 h-4 ${
-                            isDarkMode ? 'text-purple-400' : 'text-white'
-                          }`} />
-                        </div>
-                        <code className={`flex-1 text-sm font-mono ${
-                          isDarkMode ? 'text-purple-300' : 'text-purple-700'
-                        }`}>
-                          {slug}
-                        </code>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-600'
-                        }`}>
-                          #{index + 1}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    <Zap className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                    <p className="text-lg">No capabilities available</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Footer Info */}
-          <div className={`p-6 border-t ${
-            isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'
-          }`}>
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">💡</span>
-              </div>
-              <div>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  <span className={isDarkMode ? 'text-purple-400' : 'text-purple-600'}>Tool:</span> {capabilities?.tool_name || integrationDetailsModal.integrationSlug} | <span className={isDarkMode ? 'text-purple-400' : 'text-purple-600'}>{capabilities?.count || 0}</span> available actions
-                </p>
-              </div>
-            </div>
-          </div>
+    <Modal
+      open={integrationDetailsModal.isOpen}
+      onOpenChange={(open) => !open && closeIntegrationDetailsModal()}
+      size="lg"
+      icon={
+        <span className="grid size-12 shrink-0 place-items-center rounded-pill border border-white/35 bg-white/10 text-white" aria-hidden="true">
+          <BrandIcon name={integrationDetailsModal.integrationSlug || name} size={22} />
+        </span>
+      }
+      title={
+        <>
+          What {name} <em className="sky-serif">can do</em>
+        </>
+      }
+      description={isLoading ? 'Loading actions…' : `${count} ${count === 1 ? 'action' : 'actions'} your agents can use`}
+      footer={
+        <Button variant="glass" size="sm" onClick={closeIntegrationDetailsModal}>
+          Close
+        </Button>
+      }
+    >
+      {isLoading && (
+        <div className="grid min-h-[200px] place-items-center">
+          <Spinner label="Loading actions" />
         </div>
-      </div>
-    </div>
+      )}
+
+      {isError && (
+        <p className="m-0 rounded-2xl border border-off/40 bg-off/10 px-4 py-3 text-sm" role="alert">
+          We couldn't load what {name} can do. Close this and try again.
+        </p>
+      )}
+
+      {!isLoading && !isError && capabilities && (
+        capabilities.slugs && capabilities.slugs.length > 0 ? (
+          <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
+            {capabilities.slugs.map((slug) => (
+              <li key={slug} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5" title={slug}>
+                <Zap className="size-3.5 shrink-0 text-white/60" strokeWidth={1.7} aria-hidden="true" />
+                <span className="truncate text-sm">{actionLabel(slug, name)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <Zap className="size-6 text-white/40" strokeWidth={1.7} aria-hidden="true" />
+            <p className="m-0 text-white/72">No actions listed for {name} yet.</p>
+          </div>
+        )
+      )}
+    </Modal>
   );
 }
 
 export default IntegrationDetailsModal;
-

@@ -11,10 +11,12 @@ interface HeaderBandProps {
   subtitle?: ReactNode
   /** Right side: toggles, primary action */
   actions?: ReactNode
+  /** Full-width row under the title, e.g. filter chips */
+  below?: ReactNode
 }
 
 // App page header on the dusk photo, fading into night at the bottom
-export function HeaderBand({ eyebrow, title, accent, subtitle, actions }: HeaderBandProps) {
+export function HeaderBand({ eyebrow, title, accent, subtitle, actions, below }: HeaderBandProps) {
   return (
     <section className="relative bg-[linear-gradient(180deg,rgba(10,14,20,0.2),#0a0e14),url(/assets/sky/sky-dusk.webp)] bg-[#1a2a48] bg-cover bg-[center_30%] pt-14 pb-10">
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-end justify-between gap-6 px-4 sm:px-6 lg:px-10">
@@ -29,11 +31,16 @@ export function HeaderBand({ eyebrow, title, accent, subtitle, actions }: Header
               </>
             )}
           </h1>
-          {subtitle && <p className="m-0 text-white/72">{subtitle}</p>}
+          {subtitle && <div className="m-0 text-white/72">{subtitle}</div>}
         </BlurFade>
         {actions && (
           <BlurFade delay={0.12} className="flex flex-wrap items-center gap-2.5">
             {actions}
+          </BlurFade>
+        )}
+        {below && (
+          <BlurFade delay={0.12} className="w-full">
+            {below}
           </BlurFade>
         )}
       </div>

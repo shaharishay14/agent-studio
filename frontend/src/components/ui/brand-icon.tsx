@@ -20,6 +20,7 @@ import {
   siLinear,
   siMailchimp,
   siNotion,
+  siReddit,
   siShopify,
   siStripe,
   siTelegram,
@@ -56,6 +57,7 @@ const BRANDS: Record<string, SimpleIcon | LucideIcon> = {
   linear: siLinear,
   mailchimp: siMailchimp,
   notion: siNotion,
+  reddit: siReddit,
   shopify: siShopify,
   stripe: siStripe,
   telegram: siTelegram,
@@ -63,6 +65,7 @@ const BRANDS: Record<string, SimpleIcon | LucideIcon> = {
   trello: siTrello,
   whatsapp: siWhatsapp,
   x: siX,
+  twitter: siX,
   youtube: siYoutube,
   zoom: siZoom,
   // Not in simple-icons
